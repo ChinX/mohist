@@ -28,11 +28,11 @@ func RespondJson(rw http.ResponseWriter, val interface{}, status int) {
 }
 
 func SetJsonHeader(header http.Header, key string, val interface{}) error {
-	byt, err := json.Marshal(val)
+	byteArr, err := json.Marshal(val)
 	if err != nil {
 		return err
 	}
-	header.Set(key, base64.URLEncoding.EncodeToString(byt))
+	header.Set(key, base64.URLEncoding.EncodeToString(byteArr))
 	return nil
 }
 
@@ -41,19 +41,19 @@ func SetBase64Header(header http.Header, key string, val string) error {
 	return nil
 }
 
-func getBase64Header(header http.Header, key string) (string, error) {
+func getBase64Header(header http.Header, key string) ([]byte, error) {
 	return base64.URLEncoding.DecodeString(header.Get(key))
 }
 
-func GetBase64Header(req *http.Request, key string) (string, error) {
-	byt, err := getBase64Header(req, key)
-	return string(byt), err
+func GetBase64Header(header http.Header, key string) (string, error) {
+	byteArr, err := getBase64Header(header, key)
+	return string(byteArr), err
 }
 
-func GetJsonHeader(req *http.Request, key string, val interface{}) error {
-	byt, err := getBase64Header(req, key)
+func GetJsonHeader(header http.Header, key string, val interface{}) error {
+	byteArr, err := getBase64Header(header, key)
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(byt, val)
+	return json.Unmarshal(byteArr, val)
 }
