@@ -1,7 +1,8 @@
-package web
+package router
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -16,22 +17,26 @@ var (
 		http.MethodOptions: true,
 		http.MethodHead:    true,
 	}
+	MaxMemory = 10 * 1024 * 1024 // 10MB. Should probably make this configurable...
 )
 
 const (
 	MethodAny = "*"
 )
 
-type Handle func(w http.ResponseWriter, req *http.Request)
+type Handle func(w http.ResponseWriter, req *http.Request, param *url.Values)
 
 type Router struct {
-	tree        *node
+	autoHead    bool
+	trees       map[string]*node
 	rootHandler Handle
 }
 
-func NewRouter(rootHandler Handle) *Router {
-	node := node{component: "/", isNamedParam: false, methods: make(map[string]*route)}
-	return &Router{tree: &node, rootHandler: rootHandler}
+func New(rootHandler Handle) *Router {
+	return &Router{
+		trees:       make(map[string]*node),
+		rootHandler: rootHandler,
+	}
 }
 
 func (r *Router) eachHandle(method, path string, handler Handle) {
@@ -50,7 +55,12 @@ func (r *Router) eachHandle(method, path string, handler Handle) {
 	}
 
 	for m := range methods {
-		r.tree.addNode(m, path, handler)
+		t, ok := r.trees[m]
+		if !ok {
+			t = newNode()
+			r.trees[m] = t
+		}
+		t.add(path, handler)
 	}
 }
 
@@ -70,9 +80,9 @@ func (r *Router) Head(pattern string, hs ...Handle) {
 
 func (r *Router) Get(pattern string, hs ...Handle) {
 	r.handle(http.MethodGet, pattern, hs)
-	//if r.autoHead {
-	//	r.Hand(pattern, hs...)
-	//}
+	if r.autoHead {
+		r.Head(pattern, hs...)
+	}
 }
 
 func (r *Router) Patch(pattern string, hs ...Handle) {
@@ -96,21 +106,15 @@ func (r *Router) Any(pattern string, hs ...Handle) {
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	cw := w
-	req.ParseMultipartForm(10 * 1024 * 1024) // 10MB. Should probably make this configurable...
-	params := &req.Form
-	//if !runMiddleware(cw, req, params, r.middleware...) {
-	//	return // end the chain.
-	//}
-	node, _ := r.tree.traverse(strings.Split(req.URL.Path, "/")[1:], params)
-	if handler := node.methods[req.Method]; handler != nil {
-		//if !runMiddleware(cw, req, params, handler.middleware...) {
-		//	return
-		//}
-		handler.handler(cw, req)
-	} else {
-		r.rootHandler(cw, req)
+	req.ParseMultipartForm(MaxMemory)
+	params := &url.Values{}
+	if t, ok := r.trees[req.Method]; ok {
+		if handler := t.match(req.URL.Path, params); handler != nil {
+			handler(w, req, params)
+			return
+		}
 	}
+	r.rootHandler(w, req)
 }
 
 func NotFound(w http.ResponseWriter, req *http.Request) {
