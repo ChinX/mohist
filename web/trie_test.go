@@ -12,79 +12,106 @@ import (
 	"github.com/go-macaron/macaron"
 	"github.com/julienschmidt/httprouter"
 	"github.com/labstack/echo"
+	"github.com/labstack/echo/test"
+	"net/http/httptest"
+	"time"
 )
+
+var waitTime time.Duration = 0
 
 type testPat struct {
 }
 
 func (p testPat) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-
-}
-
-func BenchmarkMohist(b *testing.B) {
-	n := NewRouter()
-	execute(b, n, func(path string) {
-		n.Get(path, func(w http.ResponseWriter, req *http.Request, params *url.Values) {
-		})
-	})
-}
-
-func BenchmarkEach(b *testing.B) {
-	n := echo.New()
-	execute(b, n, func(path string) {
-		n.GET(path, func(content *echo.Context) {
-		})
-	})
+	wait()
 }
 
 func BenchmarkGin(b *testing.B) {
 	n := gin.New()
-	execute(b, n, func(path string) {
+	b.Log("Gin")
+	execute(b, func(path string) {
 		n.GET(path, func(content *gin.Context) {
+			wait()
 		})
-	})
+	}, func(path string) { request(n, path) })
+}
+
+func BenchmarkMohist(b *testing.B) {
+	n := NewRouter()
+	b.Log("Mohist")
+	execute(b, func(path string) {
+		n.Get(path, func(w http.ResponseWriter, req *http.Request, params *url.Values) {
+			wait()
+		})
+	}, func(path string) { request(n, path) })
+}
+
+func BenchmarkEach(b *testing.B) {
+	n := echo.New()
+	b.Log("Each")
+	execute(b, func(path string) {
+		n.GET(path, func(content echo.Context) error {
+			wait()
+			return nil
+		})
+	}, func(path string) { requestEcho(n, path) })
 }
 
 func BenchmarkBaa(b *testing.B) {
 	n := baa.New()
-	execute(b, n, func(path string) {
+	b.Log("Baa")
+	execute(b, func(path string) {
 		n.Get(path, func(content *baa.Context) {
+			wait()
 		})
-	})
+	}, func(path string) { request(n, path) })
 }
 
 func BenchmarkPat(b *testing.B) {
 	n := pat.New()
-	execute(b, n, func(path string) {
+	b.Log("Pat")
+	execute(b, func(path string) {
 		n.Get(path, &testPat{})
-	})
+	}, func(path string) { request(n, path) })
 }
 
 func BenchmarkHttpRouter(b *testing.B) {
 	n := &httprouter.Router{}
-	execute(b, n, func(path string) {
-		n.GET(path, func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {})
-	})
+	b.Log("httprouter")
+	execute(b, func(path string) {
+		n.GET(path, func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+			wait()
+		})
+	}, func(path string) { request(n, path) })
 }
 
 func BenchmarkMacaron(b *testing.B) {
 	n := macaron.New()
-	execute(b, n, func(path string) {
-		n.Get(path, func(w http.ResponseWriter, req *http.Request) {})
-	})
+	b.Log("Macaron")
+	execute(b, func(path string) {
+		n.Get(path, func(w http.ResponseWriter, req *http.Request) {
+			wait()
+		})
+	}, func(path string) { request(n, path) })
 }
 
-func execute(b *testing.B, n http.Handler, handler func(string)) {
+func execute(b *testing.B, reg func(string), req func(string)) {
 	addUrls := addUrl()
 	for i := 0; i < len(addUrls); i++ {
-		handler(addUrls[i])
+		reg(addUrls[i])
 	}
 	matches := matchUrl()
 	for i := 0; i < b.N; i++ {
 		for i := 0; i < len(matches); i++ {
-			request(n, matches[i])
+			req(matches[i])
 		}
 	}
+}
+
+func requestEcho(e *echo.Echo, path string) {
+	req := test.NewRequest(echo.GET, path, nil)
+	rec := test.NewResponseRecorder()
+	e.ServeHTTP(req, rec)
 }
 
 func request(n http.Handler, path string) {
@@ -92,7 +119,14 @@ func request(n http.Handler, path string) {
 	if err != nil {
 		log.Println(err)
 	}
-	n.ServeHTTP(nil, req)
+	n.ServeHTTP(httptest.NewRecorder(), req)
+}
+
+func wait()  {
+	if waitTime == 0 {
+		return
+	}
+	time.Sleep(time.Millisecond * waitTime)
 }
 
 func addUrl() []string {
