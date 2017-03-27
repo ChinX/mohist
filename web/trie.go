@@ -1,7 +1,6 @@
-package router
+package web
 
 import (
-	"net/http"
 	"net/url"
 	"strings"
 )

@@ -7,7 +7,8 @@ import (
 	"io"
 	"os"
 	"testing"
-	"github.com/chinx/utils/compress"
+
+	"github.com/chinx/mohist/compress"
 )
 
 // main functions shows how to TarGz a directory/file and

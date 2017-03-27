@@ -1,4 +1,4 @@
-package router
+package web
 
 import (
 	"encoding/base64"

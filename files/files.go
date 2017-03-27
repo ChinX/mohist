@@ -1,11 +1,11 @@
 package files
 
 import (
+	"bufio"
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
-	"bufio"
-	"bytes"
 	"syscall"
 )
 

@@ -1,31 +1,56 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 
 	"github.com/chinx/mohist/web"
 	"github.com/urfave/negroni"
 )
 
 func main() {
-	r := web.NewRouter(web.NotFound)
+	r := web.NewRouter()
 	InitRouter(r)
 
 	n := negroni.Classic()
 	n.UseHandler(r)
-	n.Run(":9090")
+	n.Run(":9999")
 }
 
-func InitRouter(r *web.Router) {
-	r.Get("/accounts/", testHandle)
-	r.Get("/accounts/:account", testHandle)
-	r.Get("/accounts/:account/status", testHandle)
-	r.Get("/accounts/:account/status/:statu", testHandle)
+func InitRouter(r web.Router) {
+	r.Group("/accounts", func() {
+		r.Get("/", firstHandler, testHandle)
+		r.Group("/:account", func() {
+			r.Get("/", firstHandler, testHandle)
+			r.Group("/status", func() {
+				r.Get("/", firstHandler, testHandle)
+				r.Get("/:statu", firstHandler, testHandle)
+			}, groupThreeHandler)
+		}, groupTwoHandler)
+	}, groupFirstHandler)
 }
 
-func testHandle(w http.ResponseWriter, req *http.Request) {
-	log.Println(req.URL, req.Form)
-	w.Write([]byte("ok"))
+func groupFirstHandler(w http.ResponseWriter, req *http.Request, params *url.Values) {
+	log.Println("this is first grou")
+}
+
+func groupTwoHandler(w http.ResponseWriter, req *http.Request, params *url.Values) {
+	log.Println("this is two grou")
+}
+
+func groupThreeHandler(w http.ResponseWriter, req *http.Request, params *url.Values) {
+	log.Println("this is three grou")
+}
+
+func firstHandler(w http.ResponseWriter, req *http.Request, params *url.Values) {
+	log.Println("this is frist")
+}
+
+func testHandle(w http.ResponseWriter, req *http.Request, params *url.Values) {
+	backStr := fmt.Sprintf("%s: %s", req.URL.Path, params.Encode())
+	log.Println(backStr)
 	w.WriteHeader(200)
+	w.Write([]byte(backStr))
 }
