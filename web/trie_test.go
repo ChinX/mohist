@@ -6,15 +6,15 @@ import (
 	"net/url"
 	"testing"
 
+	"net/http/httptest"
+	"time"
+
 	"github.com/bmizerany/pat"
 	"github.com/gin-gonic/gin"
 	"github.com/go-baa/baa"
 	"github.com/go-macaron/macaron"
 	"github.com/julienschmidt/httprouter"
 	"github.com/labstack/echo"
-	"github.com/labstack/echo/test"
-	"net/http/httptest"
-	"time"
 )
 
 var waitTime time.Duration = 0
@@ -24,6 +24,10 @@ type testPat struct {
 
 func (p testPat) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	wait()
+}
+
+func TestRouter_ServeHTTP(t *testing.T) {
+
 }
 
 func BenchmarkGin(b *testing.B) {
@@ -54,7 +58,7 @@ func BenchmarkEach(b *testing.B) {
 			wait()
 			return nil
 		})
-	}, func(path string) { requestEcho(n, path) })
+	}, func(path string) { request(n, path) })
 }
 
 func BenchmarkBaa(b *testing.B) {
@@ -108,12 +112,6 @@ func execute(b *testing.B, reg func(string), req func(string)) {
 	}
 }
 
-func requestEcho(e *echo.Echo, path string) {
-	req := test.NewRequest(echo.GET, path, nil)
-	rec := test.NewResponseRecorder()
-	e.ServeHTTP(req, rec)
-}
-
 func request(n http.Handler, path string) {
 	req, err := http.NewRequest(http.MethodGet, path, nil)
 	if err != nil {
@@ -122,7 +120,7 @@ func request(n http.Handler, path string) {
 	n.ServeHTTP(httptest.NewRecorder(), req)
 }
 
-func wait()  {
+func wait() {
 	if waitTime == 0 {
 		return
 	}

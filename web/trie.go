@@ -23,6 +23,7 @@ type node struct {
 }
 
 func newNode() *node {
+
 	return &node{children: newTrunks()}
 }
 
