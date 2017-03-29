@@ -5,7 +5,7 @@ import (
 	"net/url"
 )
 
-type Handle func(rw http.ResponseWriter, req *http.Request, params *url.Values)
+
 
 func chainHandler(handlers ...Handle) Handle {
 	return func(rw http.ResponseWriter, req *http.Request, params *url.Values) {

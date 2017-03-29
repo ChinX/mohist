@@ -46,17 +46,15 @@ type Router interface {
 }
 
 type router struct {
-	autoHead       bool
-	//trees          map[string]*node
-	trees          map[string]*matcher
+	autoHead bool
+	trees    map[string]*node
 	notFondHandler Handle
 	groups         []*group
 }
 
 func NewRouter() Router {
 	return &router{
-		trees: make(map[string]*matcher ,len(httpMethods)),
-		//trees: make(map[string]*node),
+		trees: make(map[string]*node, len(httpMethods)),
 	}
 }
 
@@ -86,7 +84,7 @@ func (r *router) handle(method, pattern string, handlers ...Handle) {
 	for m := range methods {
 		t, ok := r.trees[m]
 		if !ok {
-			t = newMatcher("", levelStatic)
+			t = newNode()
 			r.trees[m] = t
 		}
 		t.add(pattern, chainHandler(handlers...))

@@ -1,18 +1,20 @@
 package web
 
 import (
+	"net/http"
 	"net/url"
-	"strings"
 )
 
 const (
-	levelOptimum patternType = iota
-	levelVariable
-	levelOptional
+	levelStatic patternType = iota
+	levelParam
+	levelWide
+	delimiter = '/'
 )
 
 type (
 	patternType int8
+	Handle      func(rw http.ResponseWriter, req *http.Request, params *url.Values)
 )
 
 type node struct {
@@ -23,16 +25,27 @@ type node struct {
 }
 
 func newNode() *node {
-
 	return &node{children: newTrunks()}
 }
 
 func (n *node) add(path string, handler Handle) {
-	path = strings.Trim(path, "/")
-	index := strings.Index(path, "/")
-	if index != -1 {
-		n.pattern = path[:index]
-		n.children.matchOrBuild(path[index+1:], handler)
+	if path[0] == delimiter {
+		path = path[1:]
+	}
+	l := len(path)
+	if path[l-1] == delimiter {
+		l -= 1
+		path = path[:l]
+	}
+	i := 0
+	for ; i < l; i++ {
+		if path[i] == delimiter {
+			break
+		}
+	}
+	if i != l {
+		n.pattern = path[:i]
+		n.children.matchOrBuild(path[i+1:], handler)
 	} else {
 		if n.method != nil {
 			panic("Ending point handler must be only")
@@ -40,15 +53,24 @@ func (n *node) add(path string, handler Handle) {
 		n.method = handler
 		n.pattern = path
 	}
-	n.level = ranking(path, index)
+	n.level = ranking(path, i == l)
 }
 
 func (n *node) checkEnding(path string, params *url.Values) bool {
-	if n.level != levelOptimum {
+	if n.level != levelStatic {
 		params.Add(n.pattern[int(n.level):], path)
 		return true
 	}
-	return n.pattern == path
+	l := len(path)
+	if len(n.pattern) == l {
+		i := 0
+		for ; i < l; i++ {
+			if n.pattern[i] != path[i] {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (n *node) matchEnding(path string, params *url.Values) Handle {
@@ -58,26 +80,38 @@ func (n *node) matchEnding(path string, params *url.Values) Handle {
 	if n.method != nil {
 		return n.method
 	}
-	if n.level != levelOptional && path != "" {
-		return n.children.match(levelOptional, "", params)
+	if n.level != levelWide && len(path) != 0 {
+		return n.children.match(levelWide, "", params)
 	}
 	return nil
 }
 
 func (n *node) matchSelf(level patternType, path string, params *url.Values) Handle {
-	index := strings.Index(path, "/")
-	if index == -1 {
+	l := len(path)
+	i := 0
+	for ; i < l; i++ {
+		if path[i] == delimiter {
+			break
+		}
+	}
+	if i == l {
 		return n.matchEnding(path, params)
 	}
-	if n.checkEnding(path[:index], params) {
-		return n.children.match(level, path[index+1:], params)
+	if n.checkEnding(path[:i], params) {
+		return n.children.match(level, path[i+1:], params)
 	}
 	return nil
 }
 
 func (n *node) match(path string, params *url.Values) Handle {
-	path = strings.Trim(path, "/")
-	return n.matchSelf(levelOptimum, path, params)
+	if path[0] == delimiter {
+		path = path[1:]
+	}
+	l := len(path) - 1
+	if path[l] == delimiter {
+		path = path[:l]
+	}
+	return n.matchSelf(levelStatic, path, params)
 }
 
 type trunks [][]*node
@@ -87,26 +121,35 @@ func newTrunks() trunks {
 }
 
 func (t trunks) matchOrBuild(path string, handler Handle) {
-	target := path
-	index := strings.Index(path, "/")
-	if index != -1 {
-		target = path[:index]
+	leg := len(path)
+	index := 0
+	for ; index < leg; index++ {
+		if path[index] == delimiter {
+			break
+		}
 	}
-
 	var aNode *node
 	for i := 0; i < len(t); i++ {
 		children := t[i]
 		for _, child := range children {
-			if child != nil && child.pattern == target {
-				aNode = child
-				break
+			if child != nil && len(child.pattern) == index {
+				j := 0
+				for ; j < index; j++ {
+					if child.pattern[j] != path[j] {
+						break
+					}
+				}
+				if j == index {
+					aNode = child
+					break
+				}
 			}
 		}
 	}
 
 	if aNode == nil {
 		aNode = newNode()
-		num := int(ranking(target, index))
+		num := int(ranking(path[:index], index == leg))
 		t[num] = append(t[num], aNode)
 	}
 	aNode.add(path, handler)
@@ -124,18 +167,18 @@ func (t trunks) match(level patternType, path string, params *url.Values) Handle
 	return nil
 }
 
-func ranking(path string, index int) (level patternType) {
+func ranking(path string, ending bool) (level patternType) {
 	switch path[0] {
 	case ':':
-		level = levelVariable
+		level = levelParam
 	case '?':
-		if index == -1 {
-			level = levelOptional
+		if ending {
+			level = levelWide
 		} else {
 			panic("Optional pattern must be ending point")
 		}
 	default:
-		level = levelOptimum
+		level = levelStatic
 	}
 	return
 }

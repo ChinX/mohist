@@ -15,6 +15,7 @@ import (
 	"github.com/go-macaron/macaron"
 	"github.com/julienschmidt/httprouter"
 	"github.com/labstack/echo"
+	"os"
 )
 
 var waitTime time.Duration = 0
@@ -27,10 +28,13 @@ func (p testPat) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 }
 
 func TestRouter_ServeHTTP(t *testing.T) {
-
+	a := "123"
+	a = a[:3]
+	log.Println(a)
 }
 
 func BenchmarkGin(b *testing.B) {
+	os.Setenv("GIN_MODE","1")
 	n := gin.New()
 	b.Log("Gin")
 	execute(b, func(path string) {
