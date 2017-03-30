@@ -1,20 +1,15 @@
 package web
 
-import (
-	"net/http"
-	"net/url"
-)
+import "net/url"
 
 const (
 	levelStatic patternType = iota
 	levelParam
 	levelWide
-	delimiter = '/'
 )
 
 type (
 	patternType int8
-	Handle      func(rw http.ResponseWriter, req *http.Request, params *url.Values)
 )
 
 type node struct {
@@ -29,17 +24,17 @@ func newNode() *node {
 }
 
 func (n *node) add(path string, handler Handle) {
-	if path[0] == delimiter {
+	if path[0] == '/' {
 		path = path[1:]
 	}
 	l := len(path)
-	if path[l-1] == delimiter {
+	if path[l-1] == '/' {
 		l -= 1
 		path = path[:l]
 	}
 	i := 0
 	for ; i < l; i++ {
-		if path[i] == delimiter {
+		if path[i] == '/' {
 			break
 		}
 	}
@@ -90,7 +85,7 @@ func (n *node) matchSelf(level patternType, path string, params *url.Values) Han
 	l := len(path)
 	i := 0
 	for ; i < l; i++ {
-		if path[i] == delimiter {
+		if path[i] == '/' {
 			break
 		}
 	}
@@ -104,11 +99,11 @@ func (n *node) matchSelf(level patternType, path string, params *url.Values) Han
 }
 
 func (n *node) match(path string, params *url.Values) Handle {
-	if path[0] == delimiter {
+	if path[0] == '/' {
 		path = path[1:]
 	}
 	l := len(path) - 1
-	if path[l] == delimiter {
+	if path[l] == '/' {
 		path = path[:l]
 	}
 	return n.matchSelf(levelStatic, path, params)
@@ -124,7 +119,7 @@ func (t trunks) matchOrBuild(path string, handler Handle) {
 	leg := len(path)
 	index := 0
 	for ; index < leg; index++ {
-		if path[index] == delimiter {
+		if path[index] == '/' {
 			break
 		}
 	}

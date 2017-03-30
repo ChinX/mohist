@@ -1,4 +1,4 @@
-package web
+package newweb
 
 import (
 	"log"
@@ -48,10 +48,9 @@ func BenchmarkMohist(b *testing.B) {
 	n := NewRouter()
 	b.Log("Mohist")
 	execute(b, func(path string) {
-		//n.Get(path, func(w http.ResponseWriter, req *http.Request, params *url.Values) {
-		//	wait()
-		//})
-		n.Get(path, nil)
+		n.Get(path, func(w http.ResponseWriter, req *http.Request, params Params) {
+			wait()
+		})
 	}, func(path string) { request(n, path) })
 }
 

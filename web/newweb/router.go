@@ -1,9 +1,8 @@
-package web
+package newweb
 
 import (
 	"net/http"
 	"strings"
-	"net/url"
 )
 
 // A request body as multipart/form-data is parsed and up to a total of maxMemory bytes of
@@ -12,7 +11,7 @@ import (
 var maxMemory int64 = 10 << 20 // 10MB. Should probably make this configurable...
 
 type (
-	Handle func(http.ResponseWriter, *http.Request, *url.Values)
+	Handle func(http.ResponseWriter, *http.Request, Params)
 	group  struct {
 		pattern  string
 		handlers []Handle
@@ -50,9 +49,11 @@ func (r *Router) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	path := req.URL.Path
 	nrw := NewResponseWriter(rw)
-	params := &url.Values{}
 	if root, ok := r.Trees[req.Method]; ok {
-		if handler := root.match(path, params); handler != nil {
+		if path[len(path)-1] != '/' {
+			path += "/"
+		}
+		if handler, params, _ := root.getValue(path); handler != nil {
 			handler(nrw, req, params)
 			return
 		}
@@ -115,6 +116,10 @@ func (r *Router) Any(pattern string, handlers ...Handle) {
 }
 
 func (r *Router) handle(method, pattern string, handlers []Handle) {
+	handler := handlersChain(handlers)
+	if handler == nil {
+		return
+	}
 	pattern = FormatPath(pattern)
 	if len(r.groups) > 0 {
 		groupPattern := ""
@@ -132,22 +137,22 @@ func (r *Router) handle(method, pattern string, handlers []Handle) {
 		root = newNode()
 		r.Trees[method] = root
 	}
-	root.add(pattern, handlersChain(handlers))
+	root.addRoute(pattern, handler)
 }
 
 func handlersChain(handlers []Handle) Handle {
-	nHandlers := make([]Handle,0,10)
+	nHandlers := make([]Handle, 0, 20)
 	l := 0
-	for i := 0; i < len(handlers); i++{
-		if handlers[i] != nil{
+	for i := 0; i < len(handlers); i++ {
+		if handlers[i] != nil {
 			nHandlers = append(nHandlers, handlers[i])
 			l++
 		}
 	}
-	if l == 0{
+	if l == 0 {
 		return nil
 	}
-	return func(rw http.ResponseWriter, req *http.Request, params *url.Values) {
+	return func(rw http.ResponseWriter, req *http.Request, params Params) {
 		length := len(handlers)
 		for i := 0; i < length; i++ {
 			if _, ok := rw.(ResponseWriter); ok && rw.(ResponseWriter).Written() {
