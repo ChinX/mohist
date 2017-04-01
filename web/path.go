@@ -1,4 +1,4 @@
-package baaweb
+package web
 
 import "unsafe"
 

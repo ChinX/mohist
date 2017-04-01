@@ -10,6 +10,9 @@ import (
 
 	"os"
 
+	"encoding/json"
+	"net/url"
+
 	"github.com/bmizerany/pat"
 	"github.com/gin-gonic/gin"
 	"github.com/go-baa/baa"
@@ -28,9 +31,27 @@ func (p testPat) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 }
 
 func TestRouter_ServeHTTP(t *testing.T) {
-	a := "123"
-	a = a[0:0]
-	log.Println(a)
+	n := newNode()
+	//partFunc("//accounts/:account//", func(part string, ending bool) {
+	//	log.Println(part)
+	//})
+	addUrls := addUrl()
+	for i := 0; i < len(addUrls); i++ {
+		n.addNode(addUrls[i], func(w http.ResponseWriter, req *http.Request, params *url.Values) {
+			wait()
+		})
+		//n.addNode(addUrls[i], Handle(addUrls[i]))
+
+	}
+	matchUrls := matchUrl()
+	for i := 0; i < len(matchUrls); i++ {
+		handler := n.match(matchUrls[i], &url.Values{})
+
+		log.Println(handler)
+
+	}
+	byteArr, err := json.Marshal(n)
+	log.Print(string(byteArr), err)
 }
 
 func BenchmarkGin(b *testing.B) {
@@ -48,10 +69,10 @@ func BenchmarkMohist(b *testing.B) {
 	n := NewRouter()
 	b.Log("Mohist")
 	execute(b, func(path string) {
-		//n.Get(path, func(w http.ResponseWriter, req *http.Request, params *url.Values) {
-		//	wait()
-		//})
-		n.Get(path, nil)
+		n.Get(path, func(w http.ResponseWriter, req *http.Request, params *url.Values) {
+			wait()
+		})
+		//n.Get(path, Handle(path))
 	}, func(path string) { request(n, path) })
 }
 
@@ -153,7 +174,7 @@ func matchUrl() []string {
 		"/accounts/account/",
 		"/accounts/account/projects/",
 		"/accounts/account/projects/project/",
-		"/accounts/account/projects/project/files/file/",
+		"/accounts/account/projects/project/files/file/111",
 		"/ccounts/",
 		"/ccounts/account/",
 		"/ccounts/account/projects/",

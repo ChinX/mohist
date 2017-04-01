@@ -1,10 +1,6 @@
 package web
 
-import (
-	"net/http"
-	"net/url"
-	"strings"
-)
+import "net/http"
 
 // A request body as multipart/form-data is parsed and up to a total of maxMemory bytes of
 // its file parts are stored in memory, with the remainder stored on
@@ -12,36 +8,21 @@ import (
 var maxMemory int64 = 10 << 20 // 10MB. Should probably make this configurable...
 
 type (
-	Handle func(http.ResponseWriter, *http.Request, *url.Values)
-	group  struct {
+	group struct {
 		pattern  string
 		handlers []Handle
 	}
 )
 
-type Params []struct {
-	Key   string
-	Value string
-}
-
-func (ps Params) Get(key string) (string, bool) {
-	for _, entry := range ps {
-		if entry.Key == key {
-			return entry.Value, true
-		}
-	}
-	return "", false
-}
-
 type Router struct {
-	Trees   map[string]*node
+	Trees   map[string]*Node
 	notFond Handle
 	groups  []*group
 }
 
 func NewRouter() *Router {
 	return &Router{
-		Trees: make(map[string]*node, 7),
+		Trees: make(map[string]*Node, 7),
 	}
 }
 
@@ -50,16 +31,19 @@ func (r *Router) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	path := req.URL.Path
 	nrw := NewResponseWriter(rw)
-	params := &url.Values{}
 	if root, ok := r.Trees[req.Method]; ok {
-		if handler := root.match(path, params); handler != nil {
+		if handler, params := root.match(path); handler != nil {
 			handler(nrw, req, params)
+			//if handler := root.match(path, params); handler != "" {
+			//	log.Println(handler)
 			return
 		}
 	}
 	// Handle 404
 	if r.notFond != nil {
 		r.notFond(rw, req, nil)
+		//if r.notFond != "" {
+		//	log.Println(r.notFond)
 		return
 	}
 	rw.WriteHeader(http.StatusNotFound)
@@ -71,7 +55,7 @@ func (r *Router) NotFound(handlers ...Handle) {
 }
 
 func (r *Router) Group(pattern string, fn func(), handlers ...Handle) {
-	r.groups = append(r.groups, &group{FormatPath(pattern), handlers})
+	r.groups = append(r.groups, &group{"/" + TrimByte(pattern, '/'), handlers})
 	fn()
 	r.groups = r.groups[:len(r.groups)-1]
 }
@@ -115,7 +99,7 @@ func (r *Router) Any(pattern string, handlers ...Handle) {
 }
 
 func (r *Router) handle(method, pattern string, handlers []Handle) {
-	pattern = FormatPath(pattern)
+	pattern = "/" + TrimByte(pattern, '/')
 	if len(r.groups) > 0 {
 		groupPattern := ""
 		h := make([]Handle, 0)
@@ -132,7 +116,7 @@ func (r *Router) handle(method, pattern string, handlers []Handle) {
 		root = newNode()
 		r.Trees[method] = root
 	}
-	root.add(pattern, handlersChain(handlers))
+	root.addNode(pattern, handlersChain(handlers))
 }
 
 func handlersChain(handlers []Handle) Handle {
@@ -140,14 +124,16 @@ func handlersChain(handlers []Handle) Handle {
 	l := 0
 	for i := 0; i < len(handlers); i++ {
 		if handlers[i] != nil {
+			//if handlers[i] != "" {
 			nHandlers = append(nHandlers, handlers[i])
 			l++
 		}
 	}
 	if l == 0 {
 		return nil
+		//return Handle("")
 	}
-	return func(rw http.ResponseWriter, req *http.Request, params *url.Values) {
+	return func(rw http.ResponseWriter, req *http.Request, params Params) {
 		length := len(handlers)
 		for i := 0; i < length; i++ {
 			if _, ok := rw.(ResponseWriter); ok && rw.(ResponseWriter).Written() {
@@ -159,8 +145,5 @@ func handlersChain(handlers []Handle) Handle {
 			rw.Write([]byte("Mohist is OK"))
 		}
 	}
-}
-
-func FormatPath(pattern string) string {
-	return "/" + strings.Trim(pattern, "/")
+	//return "test handlers chain"
 }

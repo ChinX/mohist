@@ -1,179 +1,148 @@
 package web
 
-import "net/url"
+import "net/http"
 
-const (
-	levelStatic patternType = iota
-	levelParam
-	levelWide
-)
+type Handle func(http.ResponseWriter, *http.Request, Params)
 
-type (
-	patternType int8
-)
-
-type node struct {
-	pattern  string
-	level    patternType
-	method   Handle
-	children trunks
+//type Handle string
+type Params []*Param
+type Param struct {
+	Key   string
+	Value string
 }
 
-func newNode() *node {
-	return &node{children: newTrunks()}
-}
-
-func (n *node) add(path string, handler Handle) {
-	if path[0] == '/' {
-		path = path[1:]
-	}
-	l := len(path)
-	if path[l-1] == '/' {
-		l -= 1
-		path = path[:l]
-	}
-	i := 0
-	for ; i < l; i++ {
-		if path[i] == '/' {
-			break
+func (ps Params) Get(key string) (string, bool) {
+	for _, entry := range ps {
+		if entry.Key == key {
+			return entry.Value, true
 		}
 	}
-	if i != l {
-		n.pattern = path[:i]
-		n.children.matchOrBuild(path[i+1:], handler)
-	} else {
-		if n.method != nil {
-			panic("Ending point handler must be only")
-		}
-		n.method = handler
-		n.pattern = path
-	}
-	n.level = ranking(path, i == l)
+	return "", false
 }
 
-func (n *node) checkEnding(path string, params *url.Values) bool {
-	if n.level != levelStatic {
-		params.Add(n.pattern[int(n.level):], path)
-		return true
+func newParam(key, val string) *Param {
+	return &Param{Key: key, Value: val}
+}
+
+type Node struct {
+	Pattern string
+	Method  Handle
+	Statics []*Node
+	Params  []*Node
+	Wide    *Node
+}
+
+func newNode() *Node {
+	return &Node{
+		Statics: make([]*Node, 0, 10),
+		Params:  make([]*Node, 0, 10),
 	}
-	l := len(path)
-	if len(n.pattern) == l {
-		i := 0
-		for ; i < l; i++ {
-			if n.pattern[i] != path[i] {
-				return false
+}
+
+func (n *Node) addNode(path string, handler Handle) {
+	target := n
+	var nn *Node
+	// todo: 增加层级，更好的命中handler
+	traverseFunc(path, func(part string, ending bool) {
+		switch part[0] {
+		case ':':
+			if len(part) == 1 || !checkPart(part[1:]) {
+				panic("Wide pattern must be param")
+			}
+			//todo:层级仅能有一个param handler
+			for i := 0; i < len(target.Params); i++ {
+				if target.Params[i].Pattern == part[1:] {
+					nn = target.Params[i]
+					break
+				}
+			}
+			if nn == nil {
+				nn = newNode()
+				target.Params = append(target.Params, nn)
+			}
+			nn.Pattern = part[1:]
+		case '?':
+			if ending && len(part) > 2 && part[1] == ':' &&
+				checkPart(part[2:]) && target.Wide == nil {
+				nn = newNode()
+				nn.Pattern = part[2:]
+				nn.Method = handler
+				target.Wide = nn
+				return
+			}
+			panic("Wide pattern must be only in ending point")
+		default:
+			if !checkPart(part) {
+				panic("Wide pattern must be static")
+			}
+			for i := 0; i < len(target.Statics); i++ {
+				if target.Statics[i].Pattern == part {
+					nn = target.Statics[i]
+					break
+				}
+			}
+			if nn == nil {
+				nn = newNode()
+				target.Statics = append(target.Statics, nn)
+			}
+			nn.Pattern = part
+		}
+		if ending {
+			if nn.Method != nil {
+				//if nn.Method != "" {
+				panic("Ending point method mush be only")
+			}
+			nn.Method = handler
+		}
+		target = nn
+		nn = nil
+	})
+}
+
+func (n *Node) match(path string) (handler Handle, values Params) {
+	values = make(Params,0,128)
+	target := n
+	var nn *Node
+	traverseFunc(path, func(part string, ending bool) {
+		// match static handler
+		for i := 0; i < len(target.Statics); i++ {
+			if target.Statics[i].Pattern == part {
+				nn = target.Statics[i]
+				break
 			}
 		}
-	}
-	return true
-}
 
-func (n *node) matchEnding(path string, params *url.Values) Handle {
-	if !n.checkEnding(path, params) {
-		return nil
-	}
-	if n.method != nil {
-		return n.method
-	}
-	if n.level != levelWide && len(path) != 0 {
-		return n.children.match(levelWide, "", params)
-	}
-	return nil
-}
-
-func (n *node) matchSelf(level patternType, path string, params *url.Values) Handle {
-	l := len(path)
-	i := 0
-	for ; i < l; i++ {
-		if path[i] == '/' {
-			break
-		}
-	}
-	if i == l {
-		return n.matchEnding(path, params)
-	}
-	if n.checkEnding(path[:i], params) {
-		return n.children.match(level, path[i+1:], params)
-	}
-	return nil
-}
-
-func (n *node) match(path string, params *url.Values) Handle {
-	if path[0] == '/' {
-		path = path[1:]
-	}
-	l := len(path) - 1
-	if path[l] == '/' {
-		path = path[:l]
-	}
-	return n.matchSelf(levelStatic, path, params)
-}
-
-type trunks [][]*node
-
-func newTrunks() trunks {
-	return make([][]*node, 3)
-}
-
-func (t trunks) matchOrBuild(path string, handler Handle) {
-	leg := len(path)
-	index := 0
-	for ; index < leg; index++ {
-		if path[index] == '/' {
-			break
-		}
-	}
-	var aNode *node
-	for i := 0; i < len(t); i++ {
-		children := t[i]
-		for _, child := range children {
-			if child != nil && len(child.pattern) == index {
-				j := 0
-				for ; j < index; j++ {
-					if child.pattern[j] != path[j] {
-						break
-					}
-				}
-				if j == index {
-					aNode = child
+		if nn == nil {
+			// match param handler
+			for i := 0; i < len(target.Params); i++ {
+				//todo:同级多个param，子路由无法被匹配出来
+				if target.Params[i].Method != nil {
+					//if target.Params[i].Method != "" {
+					nn = target.Params[i]
+					values = append(values, newParam(nn.Pattern, part))
 					break
 				}
 			}
 		}
-	}
 
-	if aNode == nil {
-		aNode = newNode()
-		num := int(ranking(path[:index], index == leg))
-		t[num] = append(t[num], aNode)
-	}
-	aNode.add(path, handler)
-}
-
-func (t trunks) match(level patternType, path string, params *url.Values) Handle {
-	for i := 0; i < len(t); i++ {
-		children := t[i]
-		for _, child := range children {
-			if handler := child.matchSelf(level, path, params); handler != nil {
-				return handler
+		if nn == nil {
+			// match wide handler
+			if target.Wide != nil {
+				values = append(values, newParam(target.Wide.Pattern, part))
+				handler = target.Wide.Method
 			}
 		}
-	}
-	return nil
-}
 
-func ranking(path string, ending bool) (level patternType) {
-	switch path[0] {
-	case ':':
-		level = levelParam
-	case '?':
-		if ending {
-			level = levelWide
-		} else {
-			panic("Optional pattern must be ending point")
+		if ending && nn != nil {
+			if nn.Method != nil {
+				//if nn.Method != "" {
+				handler = nn.Method
+			} else if nn.Wide != nil {
+				handler = nn.Wide.Method
+			}
 		}
-	default:
-		level = levelStatic
-	}
+		target = nn
+		nn = nil
+	})
 	return
 }
