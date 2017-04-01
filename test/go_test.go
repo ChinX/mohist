@@ -131,7 +131,7 @@ func BenchmarkPartPath(b *testing.B) {
 func BenchmarkPartPathFunc(b *testing.B) {
 	p := "/abc/cde/fgh/ijk/"
 	for i := 0; i < b.N; i++ {
-		partPathFunc(p, func(part string) {
+		partFunc(p, func(part string, ending bool) {
 
 		})
 	}
@@ -140,11 +140,11 @@ func BenchmarkPartPathFunc(b *testing.B) {
 func BenchmarkPartPathFunc2(b *testing.B) {
 	p := "/abc/cde/fgh/ijk/"
 	for i := 0; i < b.N; i++ {
-		partPathFunc(p, logTTT)
+		partFunc(p, logTTT)
 	}
 }
 
-func logTTT(part string)  {
+func logTTT(part string, ending bool) {
 
 }
 
@@ -158,28 +158,21 @@ func PartPath(p string) {
 
 func TestPartPath(t *testing.T) {
 	p := "//abc//cde//fgh//ijk//"
-	partPathFunc(p, func(part string) {
-		log.Println(part)
+	partFunc(p, func(part string, ending bool) {
+		log.Println(part, ending)
 	})
 }
 
-func partPathFunc(path string, fn func(string)) {
-	s, e, l := 0, 0, len(path)
-	for l != e+1 {
-		s, e = partIn(path, s)
-		if e-1 > s {
-			fn(path[s:e])
-		}
-		s = e
-	}
-}
-
 func partFunc(path string, fn func(string, bool)) {
+	if len(path) == 0 {
+		fn(path, true)
+	}
+	path = TrimRightByte(path, '/')
 	s, e, l := 0, 0, len(path)
-	ending := false
+	ending := (l == e)
 	for !ending {
 		s, e = partIn(path, s)
-		ending = (l == e+1)
+		ending = (l == e)
 		if e-1 > s {
 			fn(path[s:e], ending)
 		}
@@ -193,7 +186,6 @@ func partIn(path string, start int) (s, e int) {
 	for ; e < len(path); e++ {
 		if (path[e] == '/') == first {
 			if first {
-				e = e
 				return
 			} else {
 				s = e
@@ -201,6 +193,5 @@ func partIn(path string, start int) (s, e int) {
 			}
 		}
 	}
-	e = e - 1
 	return
 }

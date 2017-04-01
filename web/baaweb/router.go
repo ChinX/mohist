@@ -1,10 +1,32 @@
-package web
+package baaweb
 
 import (
 	"net/http"
 	"net/url"
-	"strings"
 )
+
+const (
+	GET int = iota
+	POST
+	PUT
+	DELETE
+	PATCH
+	OPTIONS
+	HEAD
+	// RouteLength route table length
+	RouteLength
+)
+
+// RouterMethods declare method key in routeMap
+var RouterMethods = map[string]int{
+	http.MethodGet:     GET,
+	http.MethodPost:    POST,
+	http.MethodPut:     PUT,
+	http.MethodDelete:  DELETE,
+	http.MethodPatch:   PATCH,
+	http.MethodOptions: OPTIONS,
+	http.MethodHead:    HEAD,
+}
 
 // A request body as multipart/form-data is parsed and up to a total of maxMemory bytes of
 // its file parts are stored in memory, with the remainder stored on
@@ -12,8 +34,7 @@ import (
 var maxMemory int64 = 10 << 20 // 10MB. Should probably make this configurable...
 
 type (
-	Handle func(http.ResponseWriter, *http.Request, *url.Values)
-	group  struct {
+	group struct {
 		pattern  string
 		handlers []Handle
 	}
@@ -34,14 +55,14 @@ func (ps Params) Get(key string) (string, bool) {
 }
 
 type Router struct {
-	Trees   map[string]*node
+	Trees   map[string]*Node
 	notFond Handle
 	groups  []*group
 }
 
 func NewRouter() *Router {
 	return &Router{
-		Trees: make(map[string]*node, 7),
+		Trees: make(map[string]*Node, RouteLength),
 	}
 }
 
@@ -71,7 +92,7 @@ func (r *Router) NotFound(handlers ...Handle) {
 }
 
 func (r *Router) Group(pattern string, fn func(), handlers ...Handle) {
-	r.groups = append(r.groups, &group{FormatPath(pattern), handlers})
+	r.groups = append(r.groups, &group{"/" + TrimByte(pattern, '/'), handlers})
 	fn()
 	r.groups = r.groups[:len(r.groups)-1]
 }
@@ -115,7 +136,7 @@ func (r *Router) Any(pattern string, handlers ...Handle) {
 }
 
 func (r *Router) handle(method, pattern string, handlers []Handle) {
-	pattern = FormatPath(pattern)
+	pattern = "/" + TrimByte(pattern, '/')
 	if len(r.groups) > 0 {
 		groupPattern := ""
 		h := make([]Handle, 0)
@@ -132,7 +153,7 @@ func (r *Router) handle(method, pattern string, handlers []Handle) {
 		root = newNode()
 		r.Trees[method] = root
 	}
-	root.add(pattern, handlersChain(handlers))
+	root.addNode(pattern, handlersChain(handlers))
 }
 
 func handlersChain(handlers []Handle) Handle {
@@ -159,8 +180,4 @@ func handlersChain(handlers []Handle) Handle {
 			rw.Write([]byte("Mohist is OK"))
 		}
 	}
-}
-
-func FormatPath(pattern string) string {
-	return "/" + strings.Trim(pattern, "/")
 }

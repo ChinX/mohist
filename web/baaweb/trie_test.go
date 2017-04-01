@@ -1,4 +1,4 @@
-package web
+package baaweb
 
 import (
 	"log"
@@ -10,14 +10,15 @@ import (
 
 	"os"
 
+	"encoding/json"
+	"net/url"
+
 	"github.com/bmizerany/pat"
 	"github.com/gin-gonic/gin"
 	"github.com/go-baa/baa"
 	"github.com/go-macaron/macaron"
 	"github.com/julienschmidt/httprouter"
 	"github.com/labstack/echo"
-	"encoding/json"
-	"net/url"
 )
 
 var waitTime time.Duration = 0
@@ -36,11 +37,14 @@ func TestRouter_ServeHTTP(t *testing.T) {
 	//})
 	addUrls := addUrl()
 	for i := 0; i < len(addUrls); i++ {
-		n.addNode(addUrls[i], Handle(addUrls[i]))
+		n.addNode(addUrls[i], func(w http.ResponseWriter, req *http.Request, params *url.Values) {
+			wait()
+		})
 
 	}
-	for i := 0; i < len(addUrls); i++ {
-		handler := n.match(addUrls[i], &url.Values{})
+	matchUrls := matchUrl()
+	for i := 0; i < len(matchUrls); i++ {
+		handler := n.match(matchUrls[i], &url.Values{})
 
 		log.Println(handler)
 
@@ -61,14 +65,13 @@ func BenchmarkGin(b *testing.B) {
 }
 
 func BenchmarkMohist(b *testing.B) {
-	//n := NewRouter()
-	//b.Log("Mohist")
-	//execute(b, func(path string) {
-	//	//n.Get(path, func(w http.ResponseWriter, req *http.Request, params *url.Values) {
-	//	//	wait()
-	//	//})
-	//	n.Get(path, nil)
-	//}, func(path string) { request(n, path) })
+	n := NewRouter()
+	b.Log("Mohist")
+	execute(b, func(path string) {
+		n.Get(path, func(w http.ResponseWriter, req *http.Request, params *url.Values) {
+			wait()
+		})
+	}, func(path string) { request(n, path) })
 }
 
 func BenchmarkEach(b *testing.B) {
@@ -155,11 +158,11 @@ func addUrl() []string {
 		"/accounts/:account/projects",
 		"/accounts/:account/projects/:project",
 		"/accounts/:account/projects/:project/files/:file",
-		//"/ccounts/",
-		//"/ccounts/:account",
-		//"/ccounts/:account/projects",
-		//"/ccounts/:account/projects/:project",
-		//"/ccounts/:account/projects/:project/files/:file",
+		"/ccounts/",
+		"/ccounts/:account",
+		"/ccounts/:account/projects",
+		"/ccounts/:account/projects/:project",
+		"/ccounts/:account/projects/:project/files/:file",
 	}
 }
 
@@ -169,11 +172,11 @@ func matchUrl() []string {
 		"/accounts/account/",
 		"/accounts/account/projects/",
 		"/accounts/account/projects/project/",
-		"/accounts/account/projects/project/files/file/",
-		//"/ccounts/",
-		//"/ccounts/account/",
-		//"/ccounts/account/projects/",
-		//"/ccounts/account/projects/project/",
-		//"/ccounts/account/projects/project/files/file/",
+		"/accounts/account/projects/project/files/file/111",
+		"/ccounts/",
+		"/ccounts/account/",
+		"/ccounts/account/projects/",
+		"/ccounts/account/projects/project/",
+		"/ccounts/account/projects/project/files/file/",
 	}
 }
