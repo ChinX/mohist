@@ -8,6 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"strings"
+
+	"github.com/chinx/mohist/byteconv"
 	"github.com/gin-gonic/gin"
 	"github.com/go-baa/baa"
 	"github.com/go-macaron/macaron"
@@ -40,6 +43,38 @@ func TestRouter_ServeHTTP(t *testing.T) {
 		log.Println(handler)
 
 	}
+}
+
+func TestPartForByte(t *testing.T) {
+	path := byteconv.Trim("//abc//def//ghi//jkl", '/')
+	part, s, ending := "", 0, false
+	for !ending {
+		part, s, ending = traversePart(path, '/', s)
+		log.Println("aaa", part, ending)
+	}
+}
+
+func BenchmarkTravers(b *testing.B) {
+	s := "////////////pattern////////////"
+	for i := 0; i < b.N; i++ {
+		arr := strings.Split(s, "/")
+		for j := 0; j < len(arr); j++ {
+			if arr[j] != "" {
+			}
+		}
+
+	}
+}
+
+func BenchmarkPartForByte(b *testing.B) {
+	p := "////////////pattern////////////"
+	for i := 0; i < b.N; i++ {
+		s, ending := 0, false
+		for !ending {
+			_, s, ending = traversePart(p, '/', s)
+		}
+	}
+
 }
 
 func BenchmarkGin(b *testing.B) {

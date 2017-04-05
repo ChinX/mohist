@@ -1,6 +1,10 @@
 package web
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/chinx/mohist/byteconv"
+)
 
 // A request body as multipart/form-data is parsed and up to a total of maxMemory bytes of
 // its file parts are stored in memory, with the remainder stored on
@@ -62,7 +66,7 @@ func (r *router) NotFound(handlers ...Handle) {
 }
 
 func (r *router) Group(pattern string, fn func(), handlers ...Handle) {
-	r.groups = append(r.groups, &group{"/" + TrimByte(pattern, '/'), handlers})
+	r.groups = append(r.groups, &group{"/" + byteconv.Trim(pattern, '/'), handlers})
 	fn()
 	r.groups = r.groups[:len(r.groups)-1]
 }
@@ -106,7 +110,7 @@ func (r *router) Any(pattern string, handlers ...Handle) {
 }
 
 func (r *router) handle(method, pattern string, handlers []Handle) {
-	pattern = "/" + TrimByte(pattern, '/')
+	pattern = "/" + byteconv.Trim(pattern, '/')
 	if len(r.groups) > 0 {
 		groupPattern := ""
 		h := make([]Handle, 0)

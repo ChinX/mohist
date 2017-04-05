@@ -1,8 +1,12 @@
 package random
 
-import "crypto/rand"
+import (
+	"crypto/rand"
 
-var pool = []byte("1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	"github.com/chinx/mohist/byteconv"
+)
+
+var pool = byteconv.StrToBytes("1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 // NewStr create a random string
 func NewStr(n int) (string, error) {

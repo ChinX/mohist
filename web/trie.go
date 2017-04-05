@@ -1,6 +1,11 @@
 package web
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/chinx/mohist/byteconv"
+	"github.com/chinx/mohist/validator"
+)
 
 type Handle func(http.ResponseWriter, *http.Request, Params)
 
@@ -44,7 +49,7 @@ func (n *node) addNode(path string, handler Handle) {
 	target := n
 	var nn *node
 	// todo: 增加层级，更好的命中handler
-	path = TrimByte(path, '/')
+	path = byteconv.Trim(path, '/')
 	part, s, ending := "", 0, false
 	for !ending {
 		part, s, ending = traversePart(path, '/', s)
@@ -112,7 +117,7 @@ func (n *node) addNode(path string, handler Handle) {
 }
 
 func (n *node) match(path string) (Handle, Params) {
-	return n.marchChildren(TrimByte(path, '/'), make(Params, 0, 128), 0)
+	return n.marchChildren(byteconv.Trim(path, '/'), make(Params, 0, 128), 0)
 }
 
 func (n *node) marchChildren(path string, values Params, s int) (handler Handle, val Params) {
@@ -161,4 +166,57 @@ func (n *node) marchChildren(path string, values Params, s int) (handler Handle,
 		handler = n.wide.method
 	}
 	return
+}
+
+func traversePart(path string, b byte, s int) (part string, n int, ending bool) {
+	l := len(path)
+	switch l {
+	case s:
+		n, ending = s, true
+	case s + 1:
+		if path[s] == b {
+			n, ending = s, true
+		} else {
+			part, n, ending = path, l, true
+		}
+	default:
+		begin := false
+		n = s
+		for ; n < len(path); n++ {
+			if (path[n] == b) == begin {
+				if begin {
+					break
+				} else {
+					s = n
+					begin = true
+				}
+			}
+		}
+		ending = (l == n)
+		if n-1 > s {
+			part = path[s:n]
+		}
+	}
+	return
+}
+
+func checkPart(part string) bool {
+	l := len(part)
+	switch l {
+	case 0:
+		return false
+	case 1:
+		return validator.IsAlpha(part[0])
+	default:
+		l = l - 1
+		if !validator.IsAlnum(part[l]) {
+			return false
+		}
+		for i := 1; i < l; i++ {
+			if !validator.IsAlnum(part[i]) && !validator.IsDot(part[i]) {
+				return false
+			}
+		}
+	}
+	return true
 }
