@@ -24,25 +24,25 @@ func newParam(key, val string) *Param {
 	return &Param{Key: key, Value: val}
 }
 
-type Node struct {
-	Pattern     string
+type node struct {
+	pattern     string
 	method      Handle
-	ParamHandle bool
-	Statics     []*Node
-	Params      []*Node
-	Wide        *Node
+	paramHandle bool
+	statics     []*node
+	params      []*node
+	wide        *node
 }
 
-func newNode() *Node {
-	return &Node{
-		Statics: make([]*Node, 0, 10),
-		Params:  make([]*Node, 0, 10),
+func newNode() *node {
+	return &node{
+		statics: make([]*node, 0, 10),
+		params:  make([]*node, 0, 10),
 	}
 }
 
-func (n *Node) addNode(path string, handler Handle) {
+func (n *node) addNode(path string, handler Handle) {
 	target := n
-	var nn *Node
+	var nn *node
 	// todo: 增加层级，更好的命中handler
 	path = TrimByte(path, '/')
 	part, s, ending := "", 0, false
@@ -53,34 +53,34 @@ func (n *Node) addNode(path string, handler Handle) {
 			if len(part) == 1 || !checkPart(part[1:]) {
 				panic("Wide pattern must be param")
 			}
-			if ending && target.ParamHandle{
+			if ending && target.paramHandle {
 				panic("Ending point method mush be only")
 			}
-			for i := 0; i < len(target.Params); i++ {
-				if target.Params[i].Pattern == part[1:] {
-					nn = target.Params[i]
+			for i := 0; i < len(target.params); i++ {
+				if target.params[i].pattern == part[1:] {
+					nn = target.params[i]
 					break
 				}
 			}
 			if nn == nil {
 				nn = newNode()
-				target.Params = append(target.Params, nn)
+				target.params = append(target.params, nn)
 			}
-			nn.Pattern = part[1:]
+			nn.pattern = part[1:]
 			if ending {
 				if nn.method != nil {
 					panic("Ending point method mush be only")
 				}
 				nn.method = handler
-				target.ParamHandle = true
+				target.paramHandle = true
 			}
 		case '?':
 			if ending && len(part) > 2 && part[1] == ':' &&
-				checkPart(part[2:]) && target.Wide == nil {
+				checkPart(part[2:]) && target.wide == nil {
 				nn = newNode()
-				nn.Pattern = part[2:]
+				nn.pattern = part[2:]
 				nn.method = handler
-				target.Wide = nn
+				target.wide = nn
 				return
 			}
 			panic("Wide pattern must be only in ending point")
@@ -88,17 +88,17 @@ func (n *Node) addNode(path string, handler Handle) {
 			if !checkPart(part) {
 				panic("Wide pattern must be static")
 			}
-			for i := 0; i < len(target.Statics); i++ {
-				if target.Statics[i].Pattern == part {
-					nn = target.Statics[i]
+			for i := 0; i < len(target.statics); i++ {
+				if target.statics[i].pattern == part {
+					nn = target.statics[i]
 					break
 				}
 			}
 			if nn == nil {
 				nn = newNode()
-				target.Statics = append(target.Statics, nn)
+				target.statics = append(target.statics, nn)
 			}
-			nn.Pattern = part
+			nn.pattern = part
 			if ending {
 				if nn.method != nil {
 					panic("Ending point method mush be only")
@@ -111,23 +111,23 @@ func (n *Node) addNode(path string, handler Handle) {
 	}
 }
 
-func (n *Node) match(path string) (Handle, Params) {
+func (n *node) match(path string) (Handle, Params) {
 	return n.marchChildren(TrimByte(path, '/'), make(Params, 0, 128), 0)
 }
 
-func (n *Node) marchChildren(path string, values Params, s int) (handler Handle, val Params) {
+func (n *node) marchChildren(path string, values Params, s int) (handler Handle, val Params) {
 	val = values
 	part, e, ending := traversePart(path, '/', s)
 
 	// match static handler
-	for i := 0; i < len(n.Statics); i++ {
-		if n.Statics[i].Pattern == part {
-			nn := n.Statics[i]
+	for i := 0; i < len(n.statics); i++ {
+		if n.statics[i].pattern == part {
+			nn := n.statics[i]
 			if ending {
 				if nn.method != nil {
 					handler = nn.method
-				} else if nn.Wide != nil {
-					handler = nn.Wide.method
+				} else if nn.wide != nil {
+					handler = nn.wide.method
 				}
 			} else {
 				handler, val = nn.marchChildren(path, val, e)
@@ -137,14 +137,14 @@ func (n *Node) marchChildren(path string, values Params, s int) (handler Handle,
 	}
 
 	// match param handler
-	for i := 0; i < len(n.Params); i++ {
-		nn := n.Params[i]
-		val = append(val, newParam(nn.Pattern, part))
+	for i := 0; i < len(n.params); i++ {
+		nn := n.params[i]
+		val = append(val, newParam(nn.pattern, part))
 		if ending {
 			if nn.method != nil {
 				handler = nn.method
-			} else if nn.Wide != nil {
-				handler = nn.Wide.method
+			} else if nn.wide != nil {
+				handler = nn.wide.method
 			}
 		} else {
 			handler, val = nn.marchChildren(path, val, e)
@@ -156,9 +156,9 @@ func (n *Node) marchChildren(path string, values Params, s int) (handler Handle,
 	}
 
 	// match wide handler
-	if ending && n.Wide != nil {
-		val = append(val, newParam(n.Wide.Pattern, part))
-		handler = n.Wide.method
+	if ending && n.wide != nil {
+		val = append(val, newParam(n.wide.pattern, part))
+		handler = n.wide.method
 	}
 	return
 }

@@ -7,26 +7,37 @@ import "net/http"
 // disk in temporary files.
 var maxMemory int64 = 10 << 20 // 10MB. Should probably make this configurable...
 
-type (
-	group struct {
-		pattern  string
-		handlers []Handle
-	}
-)
+type Router interface {
+	NotFound(handlers ...Handle)
+	Group(pattern string, fn func(), handlers ...Handle)
+	Head(pattern string, handlers ...Handle)
+	Get(pattern string, handlers ...Handle)
+	Patch(pattern string, handlers ...Handle)
+	Post(pattern string, handlers ...Handle)
+	Put(pattern string, handlers ...Handle)
+	Options(pattern string, handlers ...Handle)
+	Any(pattern string, handlers ...Handle)
+	http.Handler
+}
 
-type Router struct {
-	Trees   map[string]*Node
+type group struct {
+	pattern  string
+	handlers []Handle
+}
+
+type router struct {
+	Trees   map[string]*node
 	notFond Handle
 	groups  []*group
 }
 
-func NewRouter() *Router {
-	return &Router{
-		Trees: make(map[string]*Node, 7),
+func NewRouter() Router {
+	return &router{
+		Trees: make(map[string]*node, 7),
 	}
 }
 
-func (r *Router) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (r *router) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	req.ParseMultipartForm(maxMemory)
 
 	path := req.URL.Path
@@ -46,46 +57,46 @@ func (r *Router) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	rw.Write([]byte(path + " not fond"))
 }
 
-func (r *Router) NotFound(handlers ...Handle) {
+func (r *router) NotFound(handlers ...Handle) {
 	r.notFond = handlersChain(handlers)
 }
 
-func (r *Router) Group(pattern string, fn func(), handlers ...Handle) {
+func (r *router) Group(pattern string, fn func(), handlers ...Handle) {
 	r.groups = append(r.groups, &group{"/" + TrimByte(pattern, '/'), handlers})
 	fn()
 	r.groups = r.groups[:len(r.groups)-1]
 }
 
-func (r *Router) Head(pattern string, handlers ...Handle) {
+func (r *router) Head(pattern string, handlers ...Handle) {
 	r.handle(http.MethodHead, pattern, handlers)
 }
 
-func (r *Router) Get(pattern string, handlers ...Handle) {
+func (r *router) Get(pattern string, handlers ...Handle) {
 	r.handle(http.MethodGet, pattern, handlers)
 	r.handle(http.MethodHead, pattern, handlers)
 }
 
-func (r *Router) Post(pattern string, handlers ...Handle) {
+func (r *router) Post(pattern string, handlers ...Handle) {
 	r.handle(http.MethodPost, pattern, handlers)
 }
 
-func (r *Router) Put(pattern string, handlers ...Handle) {
+func (r *router) Put(pattern string, handlers ...Handle) {
 	r.handle(http.MethodPut, pattern, handlers)
 }
 
-func (r *Router) Delete(pattern string, handlers ...Handle) {
+func (r *router) Delete(pattern string, handlers ...Handle) {
 	r.handle(http.MethodDelete, pattern, handlers)
 }
 
-func (r *Router) Patch(pattern string, handlers ...Handle) {
+func (r *router) Patch(pattern string, handlers ...Handle) {
 	r.handle(http.MethodPatch, pattern, handlers)
 }
 
-func (r *Router) Options(pattern string, handlers ...Handle) {
+func (r *router) Options(pattern string, handlers ...Handle) {
 	r.handle(http.MethodOptions, pattern, handlers)
 }
 
-func (r *Router) Any(pattern string, handlers ...Handle) {
+func (r *router) Any(pattern string, handlers ...Handle) {
 	r.handle(http.MethodGet, pattern, handlers)
 	r.handle(http.MethodPost, pattern, handlers)
 	r.handle(http.MethodHead, pattern, handlers)
@@ -94,7 +105,7 @@ func (r *Router) Any(pattern string, handlers ...Handle) {
 	r.handle(http.MethodOptions, pattern, handlers)
 }
 
-func (r *Router) handle(method, pattern string, handlers []Handle) {
+func (r *router) handle(method, pattern string, handlers []Handle) {
 	pattern = "/" + TrimByte(pattern, '/')
 	if len(r.groups) > 0 {
 		groupPattern := ""

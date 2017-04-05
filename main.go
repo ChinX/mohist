@@ -17,7 +17,7 @@ func main() {
 	n.Run(":9999")
 }
 
-func initRouter(r *web.Router) {
+func initRouter(r web.Router) {
 	r.Group("/accounts", func() {
 		r.Get("/", firstHandler, testHandle)
 		r.Group("/:account", func() {

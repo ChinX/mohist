@@ -3,16 +3,11 @@ package web
 import (
 	"log"
 	"net/http"
-	"testing"
-
 	"net/http/httptest"
+	"os"
+	"testing"
 	"time"
 
-	"os"
-
-	"encoding/json"
-
-	"github.com/bmizerany/pat"
 	"github.com/gin-gonic/gin"
 	"github.com/go-baa/baa"
 	"github.com/go-macaron/macaron"
@@ -45,8 +40,6 @@ func TestRouter_ServeHTTP(t *testing.T) {
 		log.Println(handler)
 
 	}
-	byteArr, err := json.Marshal(n)
-	log.Print(string(byteArr), err)
 }
 
 func BenchmarkGin(b *testing.B) {
@@ -88,14 +81,6 @@ func BenchmarkBaa(b *testing.B) {
 		n.Get(path, func(content *baa.Context) {
 			wait()
 		})
-	}, func(path string) { request(n, path) })
-}
-
-func BenchmarkPat(b *testing.B) {
-	n := pat.New()
-	b.Log("Pat")
-	execute(b, func(path string) {
-		n.Get(path, &testPat{})
 	}, func(path string) { request(n, path) })
 }
 
@@ -154,11 +139,11 @@ func addUrl() []string {
 		"/accounts/:account/projects",
 		"/accounts/:account/projects/:project",
 		"/accounts/:account/projects/:project/files/:file",
-		//"/ccounts/",
-		//"/ccounts/:account",
-		//"/ccounts/:account/projects",
-		//"/ccounts/:account/projects/:project",
-		//"/ccounts/:account/projects/:project/files/:file",
+		"/ccounts/",
+		"/ccounts/:account",
+		"/ccounts/:account/projects",
+		"/ccounts/:account/projects/:project",
+		"/ccounts/:account/projects/:project/files/:file",
 	}
 }
 
@@ -169,10 +154,10 @@ func matchUrl() []string {
 		"/accounts/account/projects/",
 		"/accounts/account/projects/project/",
 		"/accounts/account/projects/project/files/file/111",
-		//"/ccounts/",
-		//"/ccounts/account/",
-		//"/ccounts/account/projects/",
-		//"/ccounts/account/projects/project/",
-		//"/ccounts/account/projects/project/files/file/",
+		"/ccounts/",
+		"/ccounts/account/",
+		"/ccounts/account/projects/",
+		"/ccounts/account/projects/project/",
+		"/ccounts/account/projects/project/files/file/",
 	}
 }
