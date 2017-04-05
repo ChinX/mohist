@@ -25,11 +25,12 @@ func newParam(key, val string) *Param {
 }
 
 type Node struct {
-	Pattern string
-	Method  Handle
-	Statics []*Node
-	Params  []*Node
-	Wide    *Node
+	Pattern     string
+	method      Handle
+	ParamHandle bool
+	Statics     []*Node
+	Params      []*Node
+	Wide        *Node
 }
 
 func newNode() *Node {
@@ -43,13 +44,18 @@ func (n *Node) addNode(path string, handler Handle) {
 	target := n
 	var nn *Node
 	// todo: 增加层级，更好的命中handler
-	traverseFunc(path, func(part string, ending bool) {
+	path = TrimByte(path, '/')
+	part, s, ending := "", 0, false
+	for !ending {
+		part, s, ending = traversePart(path, '/', s)
 		switch part[0] {
 		case ':':
 			if len(part) == 1 || !checkPart(part[1:]) {
 				panic("Wide pattern must be param")
 			}
-			//todo:层级仅能有一个param handler
+			if ending && target.ParamHandle{
+				panic("Ending point method mush be only")
+			}
 			for i := 0; i < len(target.Params); i++ {
 				if target.Params[i].Pattern == part[1:] {
 					nn = target.Params[i]
@@ -61,12 +67,19 @@ func (n *Node) addNode(path string, handler Handle) {
 				target.Params = append(target.Params, nn)
 			}
 			nn.Pattern = part[1:]
+			if ending {
+				if nn.method != nil {
+					panic("Ending point method mush be only")
+				}
+				nn.method = handler
+				target.ParamHandle = true
+			}
 		case '?':
 			if ending && len(part) > 2 && part[1] == ':' &&
 				checkPart(part[2:]) && target.Wide == nil {
 				nn = newNode()
 				nn.Pattern = part[2:]
-				nn.Method = handler
+				nn.method = handler
 				target.Wide = nn
 				return
 			}
@@ -86,63 +99,66 @@ func (n *Node) addNode(path string, handler Handle) {
 				target.Statics = append(target.Statics, nn)
 			}
 			nn.Pattern = part
-		}
-		if ending {
-			if nn.Method != nil {
-				//if nn.Method != "" {
-				panic("Ending point method mush be only")
+			if ending {
+				if nn.method != nil {
+					panic("Ending point method mush be only")
+				}
+				nn.method = handler
 			}
-			nn.Method = handler
 		}
 		target = nn
 		nn = nil
-	})
+	}
 }
 
-func (n *Node) match(path string) (handler Handle, values Params) {
-	values = make(Params,0,128)
-	target := n
-	var nn *Node
-	traverseFunc(path, func(part string, ending bool) {
-		// match static handler
-		for i := 0; i < len(target.Statics); i++ {
-			if target.Statics[i].Pattern == part {
-				nn = target.Statics[i]
-				break
-			}
-		}
+func (n *Node) match(path string) (Handle, Params) {
+	return n.marchChildren(TrimByte(path, '/'), make(Params, 0, 128), 0)
+}
 
-		if nn == nil {
-			// match param handler
-			for i := 0; i < len(target.Params); i++ {
-				//todo:同级多个param，子路由无法被匹配出来
-				if target.Params[i].Method != nil {
-					//if target.Params[i].Method != "" {
-					nn = target.Params[i]
-					values = append(values, newParam(nn.Pattern, part))
-					break
+func (n *Node) marchChildren(path string, values Params, s int) (handler Handle, val Params) {
+	val = values
+	part, e, ending := traversePart(path, '/', s)
+
+	// match static handler
+	for i := 0; i < len(n.Statics); i++ {
+		if n.Statics[i].Pattern == part {
+			nn := n.Statics[i]
+			if ending {
+				if nn.method != nil {
+					handler = nn.method
+				} else if nn.Wide != nil {
+					handler = nn.Wide.method
 				}
+			} else {
+				handler, val = nn.marchChildren(path, val, e)
 			}
+			return
 		}
+	}
 
-		if nn == nil {
-			// match wide handler
-			if target.Wide != nil {
-				values = append(values, newParam(target.Wide.Pattern, part))
-				handler = target.Wide.Method
-			}
-		}
-
-		if ending && nn != nil {
-			if nn.Method != nil {
-				//if nn.Method != "" {
-				handler = nn.Method
+	// match param handler
+	for i := 0; i < len(n.Params); i++ {
+		nn := n.Params[i]
+		val = append(val, newParam(nn.Pattern, part))
+		if ending {
+			if nn.method != nil {
+				handler = nn.method
 			} else if nn.Wide != nil {
-				handler = nn.Wide.Method
+				handler = nn.Wide.method
+			}
+		} else {
+			handler, val = nn.marchChildren(path, val, e)
+			if handler == nil {
+				continue
 			}
 		}
-		target = nn
-		nn = nil
-	})
+		return
+	}
+
+	// match wide handler
+	if ending && n.Wide != nil {
+		val = append(val, newParam(n.Wide.Pattern, part))
+		handler = n.Wide.method
+	}
 	return
 }

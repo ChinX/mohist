@@ -34,16 +34,12 @@ func (r *Router) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if root, ok := r.Trees[req.Method]; ok {
 		if handler, params := root.match(path); handler != nil {
 			handler(nrw, req, params)
-			//if handler := root.match(path, params); handler != "" {
-			//	log.Println(handler)
 			return
 		}
 	}
 	// Handle 404
 	if r.notFond != nil {
 		r.notFond(rw, req, nil)
-		//if r.notFond != "" {
-		//	log.Println(r.notFond)
 		return
 	}
 	rw.WriteHeader(http.StatusNotFound)
@@ -124,14 +120,12 @@ func handlersChain(handlers []Handle) Handle {
 	l := 0
 	for i := 0; i < len(handlers); i++ {
 		if handlers[i] != nil {
-			//if handlers[i] != "" {
 			nHandlers = append(nHandlers, handlers[i])
 			l++
 		}
 	}
 	if l == 0 {
 		return nil
-		//return Handle("")
 	}
 	return func(rw http.ResponseWriter, req *http.Request, params Params) {
 		length := len(handlers)
@@ -145,5 +139,4 @@ func handlersChain(handlers []Handle) Handle {
 			rw.Write([]byte("Mohist is OK"))
 		}
 	}
-	//return "test handlers chain"
 }

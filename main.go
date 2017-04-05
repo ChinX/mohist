@@ -11,14 +11,13 @@ import (
 
 func main() {
 	r := web.NewRouter()
-	InitRouter(r)
-
+	initRouter(r)
 	n := negroni.Classic()
 	n.UseHandler(r)
 	n.Run(":9999")
 }
 
-func InitRouter(r *web.Router) {
+func initRouter(r *web.Router) {
 	r.Group("/accounts", func() {
 		r.Get("/", firstHandler, testHandle)
 		r.Group("/:account", func() {
@@ -34,10 +33,10 @@ func InitRouter(r *web.Router) {
 		r.Group("/:account", func() {
 			r.Get("/", firstHandler, testHandle)
 			r.Group("/status", func() {
-				r.Get("/aaaa", firstHandler, testHandle)
-				r.Get("/:bbb", firstHandler, testHandle)
-				r.Get("/:ccc/abc", firstHandler, testHandle)
-				r.Get("/?:statu", firstHandler, testHandle)
+				r.Get("/aaaa", firstHandler, testaaaaHandle)
+				r.Get("/:bbb", firstHandler, testbbbHandle)
+				r.Get("/:ccc/abc", firstHandler, testcccHandle)
+				r.Get("/?:statu", firstHandler, testdddHandle)
 			}, groupThreeHandler)
 		}, groupTwoHandler)
 	}, groupFirstHandler)
@@ -61,6 +60,34 @@ func firstHandler(w http.ResponseWriter, req *http.Request, params web.Params) {
 
 func testHandle(w http.ResponseWriter, req *http.Request, params web.Params) {
 	backStr := fmt.Sprintf("%s: %s", req.URL.Path, params)
+	log.Println(backStr)
+	w.WriteHeader(200)
+	w.Write([]byte(backStr))
+}
+
+func testaaaaHandle(w http.ResponseWriter, req *http.Request, params web.Params) {
+	backStr := fmt.Sprintf("%s: %s params %s", req.URL.Path, "aaaa", params)
+	log.Println(backStr)
+	w.WriteHeader(200)
+	w.Write([]byte(backStr))
+}
+
+func testbbbHandle(w http.ResponseWriter, req *http.Request, params web.Params) {
+	backStr := fmt.Sprintf("%s: %s params %s", req.URL.Path, "bbb", params)
+	log.Println(backStr)
+	w.WriteHeader(200)
+	w.Write([]byte(backStr))
+}
+
+func testcccHandle(w http.ResponseWriter, req *http.Request, params web.Params) {
+	backStr := fmt.Sprintf("%s: %s params %s", req.URL.Path, "ccc", params)
+	log.Println(backStr)
+	w.WriteHeader(200)
+	w.Write([]byte(backStr))
+}
+
+func testdddHandle(w http.ResponseWriter, req *http.Request, params web.Params) {
+	backStr := fmt.Sprintf("%s: %s params %s", req.URL.Path, "?", params)
 	log.Println(backStr)
 	w.WriteHeader(200)
 	w.Write([]byte(backStr))

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"log"
 	"regexp"
 	"strings"
 	"testing"
@@ -69,17 +70,20 @@ func BenchmarkTravers(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		arr := strings.Split(s, "/")
 		for j := 0; j < len(arr); j++ {
-			if arr[j] != ""{}
+			if arr[j] != "" {
+			}
 		}
 
 	}
 }
 
-func BenchmarkTraverseFunc(b *testing.B) {
-	s := "////////////pattern////////////"
+func BenchmarkPartForByte(b *testing.B) {
+	p := "////////////pattern////////////"
 	for i := 0; i < b.N; i++ {
-		traverseFunc(s, func(part string, ending bool) {
-		})
+		s, ending := 0, false
+		for !ending {
+			_, s, ending = traversePart(p, '/', s)
+		}
 	}
 
 }
@@ -179,5 +183,14 @@ func BenchmarkIsAlnum2(b *testing.B) {
 			}
 		}
 
+	}
+}
+
+func TestPartForByte(t *testing.T) {
+	path := TrimByte("//abc//def//ghi//jkl", '/')
+	part, s, ending := "", 0, false
+	for !ending {
+		part, s, ending = traversePart(path, '/', s)
+		log.Println("aaa", part, ending)
 	}
 }

@@ -2,31 +2,36 @@ package web
 
 import "unsafe"
 
-func traverseFunc(path string, fn func(string, bool)) {
-	if len(path) == 0 {
-		fn(path, true)
-	}
-	path = TrimRightByte(path, '/')
-	s, e, l := 0, 0, len(path)
-	start, ending := false, (l == e)
-	for !ending {
-		for ; e < len(path); e++ {
-			if (path[e] == '/') == start {
-				if start {
+func traversePart(path string, b byte, s int) (part string, n int, ending bool) {
+	l := len(path)
+	switch l {
+	case s:
+		n, ending = s, true
+	case s + 1:
+		if path[s] == b {
+			n, ending = s, true
+		} else {
+			part, n, ending = path, l, true
+		}
+	default:
+		begin := false
+		n = s
+		for ; n < len(path); n++ {
+			if (path[n] == b) == begin {
+				if begin {
 					break
 				} else {
-					s = e
-					start = true
+					s = n
+					begin = true
 				}
 			}
 		}
-		ending = (l == e)
-		if e-1 > s {
-			fn(path[s:e], ending)
+		ending = (l == n)
+		if n-1 > s {
+			part = path[s:n]
 		}
-		s = e
-		start = false
 	}
+	return
 }
 
 func checkPart(part string) bool {
