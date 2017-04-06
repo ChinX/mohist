@@ -7,39 +7,34 @@ import (
 )
 
 var (
-	header    []byte = byteconv.StrToBytes("Headers")
-	hLen             = len(header)
-	msgLen           = 4
-	prefixLen        = hLen + msgLen
+	header    = byteconv.StrToBytes("Headers")
+	hLen      = len(header)
+	msgLen    = 4
+	prefixLen = hLen + msgLen
+	pool      = make([]byte, 0, 4096)
 )
 
-func SetHandler(h string) {
-	header = byteconv.StrToBytes(h)
-	hLen = len(header)
-	prefixLen = hLen + msgLen
+func Encode(msg []byte) []byte {
+	return append(append(header, byteconv.IntToBytes(len(msg))...), msg...)
 }
 
-func Enpacket(msg []byte) []byte {
-	return append( append(header, byteconv.IntToBytes(len(msg))...), msg...)
-}
-
-func Depacket(buffer []byte) []byte {
-	i, l := 0, len(buffer)
-	data := make([]byte, 2048)
-	for ; i < l; i++ {
+func Decode(buffer []byte) [][]byte {
+	pool := append(pool, buffer...)
+	buffers := make([][]byte, 0, 10)
+	n := 0
+	for i, l := 0, len(pool); i < l; i++ {
 		if l < i+prefixLen {
 			break
 		}
-		if bytes.Equal(buffer[i:i+hLen], header) {
-			ml := byteconv.BytesToInt(buffer[i+hLen : i+prefixLen])
+		if bytes.Equal(pool[i:i+hLen], header) {
+			ml := byteconv.BytesToInt(pool[i+hLen : i+prefixLen])
 			if l < i+prefixLen+ml {
 				break
 			}
-			data = buffer[i+prefixLen : i+prefixLen+ml]
+			buffers = append(buffers, pool[i+prefixLen:i+prefixLen+ml])
+			n = i + prefixLen + ml - 1
 		}
 	}
-	if i == l {
-		return make([]byte, 0)
-	}
-	return data
+	pool = pool[n:]
+	return buffers
 }

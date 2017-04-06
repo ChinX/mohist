@@ -5,23 +5,16 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/chinx/mohist/socket"
 	"github.com/chinx/mohist/web"
+	"github.com/urfave/negroni"
 )
 
 func main() {
-	//r := web.NewRouter()
-	//initRouter(r)
-	//n := negroni.Classic()
-	//n.UseHandler(r)
-	//n.Run(":9999")
-	go socket.Connect("127.0.0.1:9111")
-	socket.Run("127.0.0.1:9111")
-	//for {
-	//select {
-	//	case <- time.After(time.Duration(120)*time.Second):
-	//	}
-	//}
+	r := web.NewRouter()
+	initRouter(r)
+	n := negroni.Classic()
+	n.UseHandler(r)
+	n.Run(":9999")
 }
 
 func initRouter(r web.Router) {
