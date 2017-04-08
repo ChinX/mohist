@@ -6,11 +6,6 @@ import (
 	"github.com/chinx/mohist/byteconv"
 )
 
-// A request body as multipart/form-data is parsed and up to a total of maxMemory bytes of
-// its file parts are stored in memory, with the remainder stored on
-// disk in temporary files.
-var maxMemory int64 = 10 << 20 // 10MB. Should probably make this configurable...
-
 type Router interface {
 	NotFound(handlers ...Handle)
 	Group(pattern string, fn func(), handlers ...Handle)
@@ -42,13 +37,10 @@ func NewRouter() Router {
 }
 
 func (r *router) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	req.ParseMultipartForm(maxMemory)
-
 	path := req.URL.Path
-	nrw := NewResponseWriter(rw)
 	if root, ok := r.Trees[req.Method]; ok {
 		if handler, params := root.match(path); handler != nil {
-			handler(nrw, req, params)
+			handler(NewResponseWriter(rw), req, params)
 			return
 		}
 	}
@@ -59,6 +51,7 @@ func (r *router) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 	rw.WriteHeader(http.StatusNotFound)
 	rw.Write([]byte(path + " not fond"))
+	rw = nil
 }
 
 func (r *router) NotFound(handlers ...Handle) {

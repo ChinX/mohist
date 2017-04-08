@@ -10,8 +10,8 @@ import (
 type Handle func(http.ResponseWriter, *http.Request, Params)
 
 //type Handle string
-type Params []*Param
-type Param struct {
+type Params []*param
+type param struct {
 	Key   string
 	Value string
 }
@@ -25,8 +25,8 @@ func (ps Params) Get(key string) (string, bool) {
 	return "", false
 }
 
-func newParam(key, val string) *Param {
-	return &Param{Key: key, Value: val}
+func newParam(key, val string) *param {
+	return &param{Key: key, Value: val}
 }
 
 type node struct {

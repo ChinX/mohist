@@ -29,15 +29,9 @@ type beforeFunc func(ResponseWriter)
 
 // NewResponseWriter creates a ResponseWriter that wraps an http.ResponseWriter
 func NewResponseWriter(rw http.ResponseWriter) ResponseWriter {
-	nrw := &responseWriter{
+	return &responseWriter{
 		ResponseWriter: rw,
 	}
-
-	if _, ok := rw.(http.CloseNotifier); ok {
-		return &responseWriterCloseNotifer{nrw}
-	}
-
-	return nrw
 }
 
 type responseWriter struct {
@@ -45,6 +39,13 @@ type responseWriter struct {
 	status      int
 	size        int
 	beforeFuncs []beforeFunc
+}
+
+func (rw *responseWriter) Reset(orw http.ResponseWriter) {
+	rw.ResponseWriter = orw
+	rw.status = 0
+	rw.size = 0
+	rw.beforeFuncs = make([]beforeFunc, 0, 10)
 }
 
 func (rw *responseWriter) WriteHeader(s int) {
@@ -104,10 +105,6 @@ func (rw *responseWriter) Flush() {
 	}
 }
 
-type responseWriterCloseNotifer struct {
-	*responseWriter
-}
-
-func (rw *responseWriterCloseNotifer) CloseNotify() <-chan bool {
+func (rw *responseWriter) CloseNotify() <-chan bool {
 	return rw.ResponseWriter.(http.CloseNotifier).CloseNotify()
 }

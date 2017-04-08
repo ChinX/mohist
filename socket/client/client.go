@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/chinx/mohist/socket"
+	"k8s.io/kubernetes/pkg/util/json"
 	"net"
 	"os"
 	"strconv"
 	"time"
-	"k8s.io/kubernetes/pkg/util/json"
-	"github.com/chinx/mohist/socket"
 )
 
 type Msg struct {
@@ -19,15 +19,15 @@ func send(conn net.Conn) {
 	for i := 0; i < 100; i++ {
 		session := GetSession()
 		msg := &Msg{
-			Meta:map[string]interface{}{
-				"meta":"test",
-				"id":strconv.Itoa(i),
+			Meta: map[string]interface{}{
+				"meta": "test",
+				"id":   strconv.Itoa(i),
 			},
-			Content:Msg{
-				Meta:map[string]interface{}{
-					"author":"chinx",
+			Content: Msg{
+				Meta: map[string]interface{}{
+					"author": "chinx",
 				},
-				Content:session,
+				Content: session,
 			},
 		}
 		result, _ := json.Marshal(msg)
@@ -35,7 +35,7 @@ func send(conn net.Conn) {
 	}
 	fmt.Println("send over")
 	select {
-	case <-time.After(time.Duration(10)*time.Second):
+	case <-time.After(time.Duration(10) * time.Second):
 		conn.Close()
 	}
 }
