@@ -19,6 +19,11 @@ import (
 // A request body as multipart/form-data is parsed and up to a total of maxMemory bytes of
 // its file parts are stored in memory, with the remainder stored on
 // disk in temporary files.
+const (
+	_JSON_CONTENT_TYPE          = "application/json; charset=utf-8"
+	STATUS_UNPROCESSABLE_ENTITY = 422
+)
+
 var (
 	MaxMemory  int64 = 10 << 20 // 10MB. Should probably make this configurable...
 	bindingErr       = "Classification %s error: %s, field name is %s"
@@ -26,36 +31,39 @@ var (
 
 type (
 	Handler interface{}
-	parser  func(reflect.Value, *http.Request) error
+	parser  func(reflect.Value, *http.Request, Errors)
 )
 
 func bind(h Handler, rw http.ResponseWriter, req *http.Request, param web.Params) {
+	errs := Errors{}
 	parse, err := chooseBinder(req)
 	if err != nil {
-
-	}
-	typ := reflect.TypeOf(h)
-	in := make([]reflect.Value, typ.NumIn())
-	for i := 0; i < typ.NumIn(); i++ {
-		argType := typ.In(i)
-		switch argType.String() {
-		case "http.ResponseWriter":
-			in[i] = reflect.ValueOf(rw)
-		case "*http.Request":
-			in[i] = reflect.ValueOf(req)
-		case "web.Params":
-			in[i] = reflect.ValueOf(param)
-		default:
-			if argType.Kind() != reflect.Ptr {
-				panic("Pointers are accepted as bingding models")
+		errs.Add([]string{"contentType"},"",err.Error())
+	}else{
+		typ := reflect.TypeOf(h)
+		in := make([]reflect.Value, typ.NumIn())
+		for i := 0; i < typ.NumIn(); i++ {
+			argType := typ.In(i)
+			switch argType.String() {
+			case "http.ResponseWriter":
+				in[i] = reflect.ValueOf(rw)
+			case "*http.Request":
+				in[i] = reflect.ValueOf(req)
+			case "web.Params":
+				in[i] = reflect.ValueOf(param)
+			default:
+				if argType.Kind() != reflect.Ptr {
+					panic("Pointers are accepted as bingding models")
+				}
+				userStruct := reflect.New(argType.Elem())
+				parse(userStruct, req, errs)
+				fromUrl(userStruct, param, errs)
+				in[i] = userStruct
 			}
-			userStruct := reflect.New(argType.Elem())
-			parse(userStruct, req, Errors{})
-			fromUrl(userStruct, param, Errors{})
-			in[i] = userStruct
 		}
+		callback(reflect.ValueOf(h).Call(in), rw)
 	}
-	callback(reflect.ValueOf(h).Call(in), rw)
+	errorHandler(errs, rw)
 }
 
 func errorHandler(errs Errors, rw http.ResponseWriter) {
@@ -95,7 +103,7 @@ func chooseBinder(req *http.Request) (b parser, err error) {
 			}
 		}
 	}
-	return b
+	return
 }
 
 func Bind(h Handler) web.Handle {
@@ -297,7 +305,7 @@ func parseFormName(raw, actual string) string {
 }
 
 // Takes values from the form data and puts them into a struct
-func mapForm(formStruct reflect.Value, form map[string][]string, formfile map[string][]*multipart.FileHeader, errors Errors) {
+func mapForm(formStruct reflect.Value, form map[string][]string, formFile map[string][]*multipart.FileHeader, errors Errors) {
 
 	if formStruct.Kind() == reflect.Ptr {
 		formStruct = formStruct.Elem()
@@ -310,12 +318,12 @@ func mapForm(formStruct reflect.Value, form map[string][]string, formfile map[st
 
 		if typeField.Type.Kind() == reflect.Ptr && typeField.Anonymous {
 			structField.Set(reflect.New(typeField.Type.Elem()))
-			mapForm(structField.Elem(), form, formfile, errors)
+			mapForm(structField.Elem(), form, formFile, errors)
 			if reflect.DeepEqual(structField.Elem().Interface(), reflect.Zero(structField.Elem().Type()).Interface()) {
 				structField.Set(reflect.Zero(structField.Type()))
 			}
 		} else if typeField.Type.Kind() == reflect.Struct {
-			mapForm(structField, form, formfile, errors)
+			mapForm(structField, form, formFile, errors)
 		}
 
 		inputFieldName := parseFormName(typeField.Name, typeField.Tag.Get("form"))
@@ -339,7 +347,7 @@ func mapForm(formStruct reflect.Value, form map[string][]string, formfile map[st
 			continue
 		}
 
-		inputFile, exists := formfile[inputFieldName]
+		inputFile, exists := formFile[inputFieldName]
 		if !exists {
 			continue
 		}
