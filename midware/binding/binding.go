@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"reflect"
@@ -34,12 +35,12 @@ type (
 	parser  func(reflect.Value, *http.Request, Errors)
 )
 
-func bind(h Handler, rw http.ResponseWriter, req *http.Request, param web.Params) {
+func bind(h Handler, rw http.ResponseWriter, req *http.Request, param *web.Params) {
 	errs := Errors{}
 	parse, err := chooseBinder(req)
 	if err != nil {
-		errs.Add([]string{"contentType"},"",err.Error())
-	}else{
+		errs.Add([]string{"contentType"}, "", err.Error())
+	} else {
 		typ := reflect.TypeOf(h)
 		in := make([]reflect.Value, typ.NumIn())
 		for i := 0; i < typ.NumIn(); i++ {
@@ -109,7 +110,7 @@ func chooseBinder(req *http.Request) (b parser, err error) {
 func Bind(h Handler) web.Handle {
 	ensureMethod(h)
 	checkHandlerType(reflect.TypeOf(h))
-	return func(rw http.ResponseWriter, req *http.Request, param web.Params) {
+	return func(rw http.ResponseWriter, req *http.Request, param *web.Params) {
 		bind(h, rw, req, param)
 	}
 }
@@ -190,7 +191,7 @@ func fromYaml(yamlStruct reflect.Value, req *http.Request, errors Errors) {
 	}
 }
 
-func fromUrl(paramsStruct reflect.Value, params web.Params, errors Errors) {
+func fromUrl(paramsStruct reflect.Value, params *web.Params, errors Errors) {
 	if paramsStruct.Kind() == reflect.Ptr {
 		paramsStruct = paramsStruct.Elem()
 	}
@@ -216,6 +217,7 @@ func fromUrl(paramsStruct reflect.Value, params web.Params, errors Errors) {
 		}
 
 		inputValue, exists := params.Get(inputFieldName)
+		log.Println(params, inputFieldName)
 		if exists {
 			setWithProperType(typeField.Type.Kind(), inputValue, structField, inputFieldName, errors)
 		}

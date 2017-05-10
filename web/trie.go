@@ -3,21 +3,27 @@ package web
 import (
 	"net/http"
 
+	"fmt"
+
 	"github.com/chinx/mohist/byteconv"
 	"github.com/chinx/mohist/validator"
 )
 
-type Handle func(http.ResponseWriter, *http.Request, Params)
+type Handle func(http.ResponseWriter, *http.Request, *Params)
 
 //type Handle string
-type Params []*param
+type Params struct {
+	items []*param
+}
 type param struct {
 	Key   string
 	Value string
 }
 
-func (ps Params) Get(key string) (string, bool) {
-	for _, entry := range ps {
+const maxParam = 128
+
+func (ps *Params) Get(key string) (string, bool) {
+	for _, entry := range ps.items {
 		if entry.Key == key {
 			return entry.Value, true
 		}
@@ -25,8 +31,21 @@ func (ps Params) Get(key string) (string, bool) {
 	return "", false
 }
 
-func newParam(key, val string) *param {
-	return &param{Key: key, Value: val}
+func (ps *Params) Set(key, val string) error {
+	if len(ps.items) >= maxParam {
+		return fmt.Errorf("the params length must less than %d", maxParam)
+	}
+	for _, entry := range ps.items {
+		if entry.Key == key {
+			return fmt.Errorf("the key \"%s\" is exist in params", entry.Key)
+		}
+	}
+	ps.items = append(ps.items, &param{Key: key, Value: val})
+	return nil
+}
+
+func NewParams() *Params {
+	return &Params{items : make([]*param, 0, maxParam)}
 }
 
 type node struct {
@@ -116,12 +135,12 @@ func (n *node) addNode(path string, handler Handle) {
 	}
 }
 
-func (n *node) match(path string) (Handle, Params) {
-	return n.marchChildren(byteconv.Trim(path, '/'), make(Params, 0, 128), 0)
+func (n *node) match(path string) (Handle, *Params) {
+	values := NewParams()
+	return n.marchChildren(byteconv.Trim(path, '/'), values, 0), values
 }
 
-func (n *node) marchChildren(path string, values Params, s int) (handler Handle, val Params) {
-	val = values
+func (n *node) marchChildren(path string, values *Params, s int) (handler Handle) {
 	part, e, ending := traversePart(path, '/', s)
 
 	// match static handler
@@ -135,7 +154,7 @@ func (n *node) marchChildren(path string, values Params, s int) (handler Handle,
 					handler = nn.wide.method
 				}
 			} else {
-				handler, val = nn.marchChildren(path, val, e)
+				handler = nn.marchChildren(path, values, e)
 			}
 			return
 		}
@@ -144,7 +163,7 @@ func (n *node) marchChildren(path string, values Params, s int) (handler Handle,
 	// match param handler
 	for i := 0; i < len(n.params); i++ {
 		nn := n.params[i]
-		val = append(val, newParam(nn.pattern, part))
+		values.Set(nn.pattern, part)
 		if ending {
 			if nn.method != nil {
 				handler = nn.method
@@ -152,7 +171,7 @@ func (n *node) marchChildren(path string, values Params, s int) (handler Handle,
 				handler = nn.wide.method
 			}
 		} else {
-			handler, val = nn.marchChildren(path, val, e)
+			handler = nn.marchChildren(path, values, e)
 			if handler == nil {
 				continue
 			}
@@ -162,7 +181,7 @@ func (n *node) marchChildren(path string, values Params, s int) (handler Handle,
 
 	// match wide handler
 	if ending && n.wide != nil {
-		val = append(val, newParam(n.wide.pattern, part))
+		values.Set(n.wide.pattern, part)
 		handler = n.wide.method
 	}
 	return

@@ -42,51 +42,51 @@ func initRouter(r web.Router) {
 	}, groupFirstHandler)
 }
 
-func groupFirstHandler(w http.ResponseWriter, req *http.Request, params web.Params) {
+func groupFirstHandler(w http.ResponseWriter, req *http.Request, params *web.Params) {
 	log.Println("this is first grou")
 }
 
-func groupTwoHandler(w http.ResponseWriter, req *http.Request, params web.Params) {
+func groupTwoHandler(w http.ResponseWriter, req *http.Request, params *web.Params) {
 	log.Println("this is two grou")
 }
 
-func groupThreeHandler(w http.ResponseWriter, req *http.Request, params web.Params) {
+func groupThreeHandler(w http.ResponseWriter, req *http.Request, params *web.Params) {
 	log.Println("this is three grou")
 }
 
-func firstHandler(w http.ResponseWriter, req *http.Request, params web.Params) {
+func firstHandler(w http.ResponseWriter, req *http.Request, params *web.Params) {
 	log.Println("this is frist")
 }
 
-func testHandle(w http.ResponseWriter, req *http.Request, params web.Params) {
+func testHandle(w http.ResponseWriter, req *http.Request, params *web.Params) {
 	backStr := fmt.Sprintf("%s: %s", req.URL.Path, params)
 	log.Println(backStr)
 	w.WriteHeader(200)
 	w.Write([]byte(backStr))
 }
 
-func testaaaaHandle(w http.ResponseWriter, req *http.Request, params web.Params) {
+func testaaaaHandle(w http.ResponseWriter, req *http.Request, params *web.Params) {
 	backStr := fmt.Sprintf("%s: %s params %s", req.URL.Path, "aaaa", params)
 	log.Println(backStr)
 	w.WriteHeader(200)
 	w.Write([]byte(backStr))
 }
 
-func testbbbHandle(w http.ResponseWriter, req *http.Request, params web.Params) {
+func testbbbHandle(w http.ResponseWriter, req *http.Request, params *web.Params) {
 	backStr := fmt.Sprintf("%s: %s params %s", req.URL.Path, "bbb", params)
 	log.Println(backStr)
 	w.WriteHeader(200)
 	w.Write([]byte(backStr))
 }
 
-func testcccHandle(w http.ResponseWriter, req *http.Request, params web.Params) {
+func testcccHandle(w http.ResponseWriter, req *http.Request, params *web.Params) {
 	backStr := fmt.Sprintf("%s: %s params %s", req.URL.Path, "ccc", params)
 	log.Println(backStr)
 	w.WriteHeader(200)
 	w.Write([]byte(backStr))
 }
 
-func testdddHandle(w http.ResponseWriter, req *http.Request, params web.Params) {
+func testdddHandle(w http.ResponseWriter, req *http.Request, params *web.Params) {
 	backStr := fmt.Sprintf("%s: %s params %s", req.URL.Path, "?", params)
 	log.Println(backStr)
 	w.WriteHeader(200)

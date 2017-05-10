@@ -18,14 +18,16 @@ type Sname struct {
 }
 
 func TestBind(t *testing.T) {
-	handler := Bind(func(obj Sname) (int, []byte) {
-		log.Println(obj)
+	handler := Bind(func(obj *Sname) (int, []byte) {
+		log.Println(*obj)
 		return 0, []byte("aaa")
 	})
 	rw := httptest.NewRecorder()
 	s := &Sname{A: "name", B: "value"}
 	byt, _ := json.Marshal(s)
 	req := httptest.NewRequest("GET", "http://127.0.0.1/ass/abc?a=thisisa&b=thisisb", bytes.NewReader(byt))
-	params := web.Params{&web.param{Key: "aaa", Value: "bbb"}, &web.param{Key: "ccc", Value: "ddd"}}
+	params := web.NewParams()
+	params.Set("aaa","bbb")
+	params.Set("ccc","ddd")
 	handler(rw, req, params)
 }
