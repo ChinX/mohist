@@ -135,7 +135,7 @@ func handlersChain(handlers []Handle) Handle {
 	if l == 0 {
 		return nil
 	}
-	return func(rw http.ResponseWriter, req *http.Request, params *Params) {
+	return func(rw http.ResponseWriter, req *http.Request, params Params) {
 		length := len(handlers)
 		for i := 0; i < length; i++ {
 			if _, ok := rw.(ResponseWriter); ok && rw.(ResponseWriter).Written() {

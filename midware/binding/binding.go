@@ -35,7 +35,7 @@ type (
 	parser  func(reflect.Value, *http.Request, Errors)
 )
 
-func bind(h Handler, rw http.ResponseWriter, req *http.Request, param *web.Params) {
+func bind(h Handler, rw http.ResponseWriter, req *http.Request, param web.Params) {
 	errs := Errors{}
 	parse, err := chooseBinder(req)
 	if err != nil {
@@ -110,7 +110,7 @@ func chooseBinder(req *http.Request) (b parser, err error) {
 func Bind(h Handler) web.Handle {
 	ensureMethod(h)
 	checkHandlerType(reflect.TypeOf(h))
-	return func(rw http.ResponseWriter, req *http.Request, param *web.Params) {
+	return func(rw http.ResponseWriter, req *http.Request, param web.Params) {
 		bind(h, rw, req, param)
 	}
 }
@@ -191,7 +191,7 @@ func fromYaml(yamlStruct reflect.Value, req *http.Request, errors Errors) {
 	}
 }
 
-func fromUrl(paramsStruct reflect.Value, params *web.Params, errors Errors) {
+func fromUrl(paramsStruct reflect.Value, params web.Params, errors Errors) {
 	if paramsStruct.Kind() == reflect.Ptr {
 		paramsStruct = paramsStruct.Elem()
 	}

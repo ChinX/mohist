@@ -9,12 +9,11 @@ import (
 	"github.com/chinx/mohist/validator"
 )
 
-type Handle func(http.ResponseWriter, *http.Request, *Params)
+type Handle func(http.ResponseWriter, *http.Request, Params)
 
 //type Handle string
-type Params struct {
-	items []*param
-}
+type Params []*param
+
 type param struct {
 	Key   string
 	Value string
@@ -22,8 +21,8 @@ type param struct {
 
 const maxParam = 128
 
-func (ps *Params) Get(key string) (string, bool) {
-	for _, entry := range ps.items {
+func (ps Params) Get(key string) (string, bool) {
+	for _, entry := range ps {
 		if entry.Key == key {
 			return entry.Value, true
 		}
@@ -31,21 +30,21 @@ func (ps *Params) Get(key string) (string, bool) {
 	return "", false
 }
 
-func (ps *Params) Set(key, val string) error {
-	if len(ps.items) >= maxParam {
+func (ps Params) Set(key, val string) error {
+	if len(ps) >= maxParam {
 		return fmt.Errorf("the params length must less than %d", maxParam)
 	}
-	for _, entry := range ps.items {
+	for _, entry := range ps {
 		if entry.Key == key {
 			return fmt.Errorf("the key \"%s\" is exist in params", entry.Key)
 		}
 	}
-	ps.items = append(ps.items, &param{Key: key, Value: val})
+	ps = append(ps, &param{Key: key, Value: val})
 	return nil
 }
 
-func NewParams() *Params {
-	return &Params{items : make([]*param, 0, maxParam)}
+func NewParams() Params {
+	return Params(make([]*param, 0, maxParam))
 }
 
 type node struct {
@@ -135,12 +134,12 @@ func (n *node) addNode(path string, handler Handle) {
 	}
 }
 
-func (n *node) match(path string) (Handle, *Params) {
+func (n *node) match(path string) (Handle, Params) {
 	values := NewParams()
 	return n.marchChildren(byteconv.Trim(path, '/'), values, 0), values
 }
 
-func (n *node) marchChildren(path string, values *Params, s int) (handler Handle) {
+func (n *node) marchChildren(path string, values Params, s int) (handler Handle) {
 	part, e, ending := traversePart(path, '/', s)
 
 	// match static handler
