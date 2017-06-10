@@ -14,6 +14,7 @@ type Router interface {
 	Patch(pattern string, handlers ...Handle)
 	Post(pattern string, handlers ...Handle)
 	Put(pattern string, handlers ...Handle)
+	Delete(pattern string, handlers ...Handle)
 	Options(pattern string, handlers ...Handle)
 	Any(pattern string, handlers ...Handle)
 	http.Handler
@@ -99,6 +100,7 @@ func (r *router) Any(pattern string, handlers ...Handle) {
 	r.handle(http.MethodHead, pattern, handlers)
 	r.handle(http.MethodDelete, pattern, handlers)
 	r.handle(http.MethodPatch, pattern, handlers)
+	r.handle(http.MethodPut, pattern, handlers)
 	r.handle(http.MethodOptions, pattern, handlers)
 }
 
