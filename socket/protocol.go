@@ -3,11 +3,11 @@ package socket
 import (
 	"bytes"
 
-	"github.com/chinx/mohist/byteconv"
+	"github.com/chinx/mohist/binary"
 )
 
 var (
-	header    = byteconv.StrToBytes("Headers")
+	header    = binary.StrToBytes("Headers")
 	hLen      = len(header)
 	msgLen    = 4
 	prefixLen = hLen + msgLen
@@ -15,7 +15,7 @@ var (
 )
 
 func Encode(msg []byte) []byte {
-	return append(append(header, byteconv.IntToBytes(len(msg))...), msg...)
+	return append(append(header, binary.IntToBytes(len(msg))...), msg...)
 }
 
 func Decode(buffer []byte) [][]byte {
@@ -27,7 +27,7 @@ func Decode(buffer []byte) [][]byte {
 			break
 		}
 		if bytes.Equal(pool[i:i+hLen], header) {
-			ml := byteconv.BytesToInt(pool[i+hLen : i+prefixLen])
+			ml := binary.BytesToInt(pool[i+hLen : i+prefixLen])
 			if l < i+prefixLen+ml {
 				break
 			}

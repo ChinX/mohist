@@ -1,8 +1,10 @@
-package byteconv
+package binary
 
 import (
 	"strings"
 	"testing"
+	"reflect"
+	"unsafe"
 )
 
 func BenchmarkConvertStrAndBytes(b *testing.B) {
@@ -61,4 +63,25 @@ func BenchmarkTrimRightStr(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		strings.TrimRight(str, "/")
 	}
+}
+
+type MyStruct struct {
+	A string `json:"a"`
+	B string `json:"b"`
+}
+
+func TestStructToBytes(t *testing.T) {
+	s := MyStruct{A:"abc",B:"cde"}
+
+	l := int(unsafe.Sizeof(MyStruct{}))
+	t.Log(l)
+	x := reflect.SliceHeader{
+		Len: l,
+		Cap: l,
+		Data: uintptr(unsafe.Pointer(&s)),
+	}
+	t.Log(*(*[]byte)(unsafe.Pointer(&x)))
+
+	t.Log(StructToBytes(s))
+	t.Log(StructToBytes(&s))
 }

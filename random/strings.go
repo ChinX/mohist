@@ -3,10 +3,10 @@ package random
 import (
 	"crypto/rand"
 
-	"github.com/chinx/mohist/byteconv"
+	"github.com/chinx/mohist/binary"
 )
 
-var pool = byteconv.StrToBytes("1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+var pool = binary.StrToBytes("1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 // NewStr create a random string
 func NewStr(n int) (string, error) {

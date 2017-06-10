@@ -1,4 +1,4 @@
-package byteconv
+package binary
 
 import (
 	"bytes"
