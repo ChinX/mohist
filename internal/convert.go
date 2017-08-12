@@ -1,4 +1,4 @@
-package binary
+package internal
 
 import (
 	"bytes"
@@ -6,19 +6,18 @@ import (
 	"unsafe"
 )
 
-func StrToBytes(s string) []byte {
+func StringBytes(s string) []byte {
 	x := (*[2]uintptr)(unsafe.Pointer(&s))
 	h := [3]uintptr{x[0], x[1], x[1]}
 	return *(*[]byte)(unsafe.Pointer(&h))
 }
 
-func BytesToStr(b []byte) string {
+func BytesString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
 func IntToBytes(n int) []byte {
 	x := int32(n)
-
 	bytesBuffer := bytes.NewBuffer([]byte{})
 	binary.Write(bytesBuffer, binary.BigEndian, x)
 	return bytesBuffer.Bytes()
@@ -33,36 +32,15 @@ func BytesToInt(b []byte) int {
 	return int(x)
 }
 
-func TrimRight(s string, b byte) string {
-	if s == "" {
-		return s
-	}
-	i := len(s)
-	for ; i > 0; i-- {
-		if s[i-1] != b {
-			break
-		}
-	}
-	return s[:i]
+func Uint32ToBytes(n uint32) []byte {
+	b := make([]byte, 4)
+	b[3] = byte(n & 0xFF)
+	b[2] = byte((n >> 8) & 0xFF)
+	b[1] = byte((n >> 16) & 0xFF)
+	b[0] = byte((n >> 24) & 0xFF)
+	return b
 }
 
-func TrimLeft(s string, b byte) string {
-	if s == "" {
-		return s
-	}
-	i := 0
-	for ; i < len(s); i++ {
-		if s[i] != b {
-			break
-		}
-	}
-	return s[i:]
-}
-
-func Trim(s string, b byte) string {
-	ns := TrimLeft(s, b)
-	if len(ns) == len(s) {
-		return s
-	}
-	return TrimRight(ns, b)
+func BytesToUint32(data []byte) uint32 {
+	return (uint32(data[0]) << 24) | (uint32(data[1]) << 16) | (uint32(data[2]) << 8) | uint32(data[3])
 }

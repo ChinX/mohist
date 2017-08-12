@@ -10,7 +10,7 @@ import (
 
 	"strings"
 
-	"github.com/chinx/mohist/binary"
+	"github.com/chinx/mohist/internal"
 	"github.com/gin-gonic/gin"
 	"github.com/go-baa/baa"
 	"github.com/go-macaron/macaron"
@@ -46,7 +46,7 @@ func TestRouter_ServeHTTP(t *testing.T) {
 }
 
 func TestPartForByte(t *testing.T) {
-	path := binary.Trim("//abc//def//ghi//jkl", '/')
+	path := internal.Trim("//abc//def//ghi//jkl", '/')
 	part, s, ending := "", 0, false
 	for !ending {
 		part, s, ending = traversePart(path, '/', s)

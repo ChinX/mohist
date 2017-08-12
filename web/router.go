@@ -3,7 +3,7 @@ package web
 import (
 	"net/http"
 
-	"github.com/chinx/mohist/binary"
+	"github.com/chinx/mohist/internal"
 )
 
 type Router interface {
@@ -60,7 +60,7 @@ func (r *router) NotFound(handlers ...Handle) {
 }
 
 func (r *router) Group(pattern string, fn func(), handlers ...Handle) {
-	r.groups = append(r.groups, &group{"/" + binary.Trim(pattern, '/'), handlers})
+	r.groups = append(r.groups, &group{"/" + internal.Trim(pattern, '/'), handlers})
 	fn()
 	r.groups = r.groups[:len(r.groups)-1]
 }
@@ -105,7 +105,7 @@ func (r *router) Any(pattern string, handlers ...Handle) {
 }
 
 func (r *router) handle(method, pattern string, handlers []Handle) {
-	pattern = "/" + binary.Trim(pattern, '/')
+	pattern = "/" + internal.Trim(pattern, '/')
 	if len(r.groups) > 0 {
 		groupPattern := ""
 		h := make([]Handle, 0)

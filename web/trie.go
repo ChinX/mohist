@@ -5,7 +5,7 @@ import (
 
 	"fmt"
 
-	"github.com/chinx/mohist/binary"
+	"github.com/chinx/mohist/internal"
 	"github.com/chinx/mohist/validator"
 )
 
@@ -67,7 +67,7 @@ func (n *node) addNode(path string, handler Handle) {
 	target := n
 	var nn *node
 	// todo: 增加层级，更好的命中handler
-	path = binary.Trim(path, '/')
+	path = internal.Trim(path, '/')
 	part, s, ending := "", 0, false
 	for !ending {
 		part, s, ending = traversePart(path, '/', s)
@@ -136,7 +136,7 @@ func (n *node) addNode(path string, handler Handle) {
 
 func (n *node) match(path string) (Handle, Params) {
 	values := NewParams()
-	return n.marchChildren(binary.Trim(path, '/'), values, 0), values
+	return n.marchChildren(internal.Trim(path, '/'), values, 0), values
 }
 
 func (n *node) marchChildren(path string, values Params, s int) (handler Handle) {
