@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net"
 	"strconv"
 	"time"
 
 	"github.com/chinx/mohist/socket"
+	"github.com/chinx/mohist/internal"
 )
 
 type Msg struct {
@@ -17,16 +17,25 @@ type Msg struct {
 }
 
 func main() {
+	log.SetFlags(log.Lshortfile | log.LstdFlags)
 	server := "127.0.0.1:9111"
 
-	cli := socket.NewClient()
-	if err := cli.Run(server, send); err != nil {
+	socket.ProtocolHeader("mohist")
+	if err := socket.ConnectTo(server, receive); err != nil {
 		log.Println(fmt.Sprintf("Client connect to %s is error: %s", server, err))
 	}
 }
 
-func send(conn net.Conn) {
-	protocol := socket.NewProtocol("mohist")
+func receive(conn socket.Connect) {
+	go send(conn)
+	for {
+		if msg, ok := <-conn.Receive(); ok {
+			log.Println(fmt.Sprintf("Receive on service: %s msg: %s", conn.Addr(), internal.BytesString(msg)))
+		}
+	}
+}
+
+func send(conn socket.Connect) {
 	for i := 0; i < 100; i++ {
 		session := GetSession()
 		msg := &Msg{
@@ -42,13 +51,9 @@ func send(conn net.Conn) {
 			},
 		}
 		result, _ := json.Marshal(msg)
-		log.Println(string(result))
-		conn.Write(protocol.Packet(result))
-	}
-	fmt.Println("send over")
-	select {
-	case <-time.After(time.Duration(20) * time.Second):
-		conn.Close()
+		if err := conn.Send(result); err != nil {
+			log.Println(err)
+		}
 	}
 }
 
