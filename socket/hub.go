@@ -2,23 +2,37 @@ package socket
 
 import "sync"
 
-var conHub = &ConnHub{hash: make(map[string]*connect)}
+var conHub = &ConnHub{hash: make(map[string]*Connect)}
 
 type ConnHub struct {
 	sync.RWMutex
-	hash map[string]*connect
+	hash map[string]*Connect
 }
 
-func Register(connect *connect) {
+func Register(connect *Connect) {
+	conHub.RLock()
+	if _, ok := conHub.hash[connect.User]; ok {
+		//conn.Conn.Write()
+		//closed
+	}
+	conHub.RUnlock()
 	conHub.Lock()
 	conHub.hash[connect.User] = connect
 	conHub.Unlock()
 }
 
-func Deregister(connect *connect) {
-	conHub.Lock()
-	delete(conHub.hash, connect.User)
-	conHub.Unlock()
+func Deregister(connect *Connect) {
+	conHub.RLock()
+	if _, ok := conHub.hash[connect.User]; ok {
+		conHub.RUnlock()
+		conHub.Lock()
+		delete(conHub.hash, connect.User)
+		conHub.Unlock()
+		//conn.Conn.Write()
+		//closed
+	}else{
+		conHub.RUnlock()
+	}
 }
 
 func InvokeEach(handler Handle) {

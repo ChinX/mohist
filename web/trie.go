@@ -3,49 +3,10 @@ package web
 import (
 	"net/http"
 
-	"fmt"
-
 	"github.com/chinx/mohist/internal"
-	"github.com/chinx/mohist/validator"
 )
 
 type Handle func(http.ResponseWriter, *http.Request, Params)
-
-//type Handle string
-type Params []*param
-
-type param struct {
-	Key   string
-	Value string
-}
-
-const maxParam = 128
-
-func (ps Params) Get(key string) (string, bool) {
-	for _, entry := range ps {
-		if entry.Key == key {
-			return entry.Value, true
-		}
-	}
-	return "", false
-}
-
-func (ps Params) Set(key, val string) error {
-	if len(ps) >= maxParam {
-		return fmt.Errorf("the params length must less than %d", maxParam)
-	}
-	for _, entry := range ps {
-		if entry.Key == key {
-			return fmt.Errorf("the key \"%s\" is exist in params", entry.Key)
-		}
-	}
-	ps = append(ps, &param{Key: key, Value: val})
-	return nil
-}
-
-func NewParams() Params {
-	return Params(make([]*param, 0, maxParam))
-}
 
 type node struct {
 	pattern     string
@@ -98,15 +59,14 @@ func (n *node) addNode(path string, handler Handle) {
 				target.paramHandle = true
 			}
 		case '?':
-			if ending && len(part) > 2 && part[1] == ':' &&
-				checkPart(part[2:]) && target.wide == nil {
-				nn = newNode()
-				nn.pattern = part[2:]
-				nn.method = handler
-				target.wide = nn
-				return
+			if !ending || len(part) < 3 || part[1] != ':' &&
+				!checkPart(part[2:]) || target.wide != nil {
+				panic("Wide pattern must be only in ending point")
 			}
-			panic("Wide pattern must be only in ending point")
+			nn = newNode()
+			nn.pattern = part[2:]
+			nn.method = handler
+			target.wide = nn
 		default:
 			if !checkPart(part) {
 				panic("Wide pattern must be static")
@@ -216,25 +176,4 @@ func traversePart(path string, b byte, s int) (part string, n int, ending bool) 
 		}
 	}
 	return
-}
-
-func checkPart(part string) bool {
-	l := len(part)
-	switch l {
-	case 0:
-		return false
-	case 1:
-		return validator.IsAlpha(part[0])
-	default:
-		l = l - 1
-		if !validator.IsAlnum(part[l]) {
-			return false
-		}
-		for i := 1; i < l; i++ {
-			if !validator.IsAlnum(part[i]) && !validator.IsDot(part[i]) {
-				return false
-			}
-		}
-	}
-	return true
 }

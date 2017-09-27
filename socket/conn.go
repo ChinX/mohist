@@ -1,40 +1,34 @@
 package socket
 
 import (
+	"errors"
 	"log"
 	"net"
-	"errors"
 )
 
 var (
-	protocol Protocol
 	noProtocolErr = errors.New("Please set protocal header first!")
+	protocol      Protocol
 )
 
-type Handle func(Connect)
+type Handle func(*Connect) bool
 
-type Connect interface {
-	Close() error
-	Addr() string
-	Receive() <-chan []byte
-	Send(msg []byte) error
-}
-
-type connect struct {
-	net.Conn
+type Connect struct {
+	conn        net.Conn
+	Code        uint32
 	User        string
 	tmpBuffer   []byte
 	readBuffer  []byte
 	receiveChan chan []byte
 }
 
-func ProtocolHeader(header string) {
-	protocol = NewProtocol(header)
+func InitProtocol(kind, identifier string) {
+	protocol = NewPacket(kind, identifier)
 }
 
-func newConnect(conn net.Conn) *connect {
-	c := &connect{
-		Conn:        conn,
+func newConnect(conn net.Conn) *Connect {
+	c := &Connect{
+		conn:        conn,
 		tmpBuffer:   make([]byte, 0, 4096),
 		readBuffer:  make([]byte, 2048),
 		receiveChan: make(chan []byte, 2048),
@@ -43,37 +37,37 @@ func newConnect(conn net.Conn) *connect {
 	return c
 }
 
-func (c *connect) run() {
+func (c *Connect) run() {
 	for {
-		n, err := c.Read(c.readBuffer)
+		n, err := c.conn.Read(c.readBuffer)
 		if err != nil {
-			log.Println(c.RemoteAddr().String(), " connection error: ", err)
+			log.Println(c.conn.RemoteAddr().String(), " connection error: ", err)
 			return
 		}
 
 		c.tmpBuffer = protocol.Unpack(append(c.tmpBuffer, c.readBuffer[:n]...), c.receiveChan)
 	}
 
-	if err := c.Close(); err != nil {
+	if err := c.conn.Close(); err != nil {
 		log.Println(err)
 	}
 }
 
-func (c *connect) Send(msg []byte) error {
-	_, err := c.Write(protocol.Packet(msg))
+func (c *Connect) Send(msg []byte) error {
+	_, err := c.conn.Write(protocol.Packet(msg))
 	return err
 }
 
-func (c *connect) Receive() <-chan []byte {
+func (c *Connect) Receive() <-chan []byte {
 	return c.receiveChan
 }
 
-func (c *connect) Addr() string {
-	return c.RemoteAddr().String()
+func (c *Connect) Addr() string {
+	return c.conn.RemoteAddr().String()
 }
 
 func ConnectTo(addr string, handler Handle) error {
-	if protocol == nil{
+	if protocol == nil {
 		return noProtocolErr
 	}
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", addr)
@@ -91,7 +85,7 @@ func ConnectTo(addr string, handler Handle) error {
 }
 
 func ListenAndServe(addr string, handler Handle) error {
-	if protocol == nil{
+	if protocol == nil {
 		return noProtocolErr
 	}
 	l, err := net.Listen("tcp", addr)

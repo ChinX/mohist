@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/chinx/mohist/socket"
 	"github.com/chinx/mohist/internal"
+	"github.com/chinx/mohist/socket"
 )
 
 type Msg struct {
@@ -20,22 +20,23 @@ func main() {
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
 	server := "127.0.0.1:9111"
 
-	socket.ProtocolHeader("mohist")
+	socket.InitProtocol(socket.DefaultProtocol, "mohist")
 	if err := socket.ConnectTo(server, receive); err != nil {
 		log.Println(fmt.Sprintf("Client connect to %s is error: %s", server, err))
 	}
 }
 
-func receive(conn socket.Connect) {
+func receive(conn *socket.Connect) bool {
 	go send(conn)
 	for {
 		if msg, ok := <-conn.Receive(); ok {
 			log.Println(fmt.Sprintf("Receive on service: %s msg: %s", conn.Addr(), internal.BytesString(msg)))
 		}
 	}
+	return false
 }
 
-func send(conn socket.Connect) {
+func send(conn *socket.Connect) {
 	for i := 0; i < 100; i++ {
 		session := GetSession()
 		msg := &Msg{
