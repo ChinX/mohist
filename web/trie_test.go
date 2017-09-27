@@ -10,7 +10,6 @@ import (
 
 	"strings"
 
-	"github.com/chinx/mohist/internal"
 	"github.com/gin-gonic/gin"
 	"github.com/go-baa/baa"
 	"github.com/go-macaron/macaron"
@@ -38,19 +37,10 @@ func TestRouter_ServeHTTP(t *testing.T) {
 	}
 	matchUrls := matchUrl()
 	for i := 0; i < len(matchUrls); i++ {
-		handler, _ := n.match(matchUrls[i])
+		handler, _, _ := n.match(matchUrls[i])
 
 		log.Println(handler)
 
-	}
-}
-
-func TestPartForByte(t *testing.T) {
-	path := internal.Trim("//abc//def//ghi//jkl", '/')
-	part, s, ending := "", 0, false
-	for !ending {
-		part, s, ending = traversePart(path, '/', s)
-		log.Println("aaa", part, ending)
 	}
 }
 
@@ -64,17 +54,6 @@ func BenchmarkTravers(b *testing.B) {
 		}
 
 	}
-}
-
-func BenchmarkPartForByte(b *testing.B) {
-	p := "////////////pattern////////////"
-	for i := 0; i < b.N; i++ {
-		s, ending := 0, false
-		for !ending {
-			_, s, ending = traversePart(p, '/', s)
-		}
-	}
-
 }
 
 func BenchmarkGin(b *testing.B) {

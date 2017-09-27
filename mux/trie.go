@@ -3,6 +3,8 @@ package mux
 import (
 	"net/http"
 
+	"io"
+
 	"github.com/chinx/mohist/internal"
 )
 
@@ -10,9 +12,9 @@ type Handle func(http.ResponseWriter, *http.Request, Params)
 
 type node struct {
 	*leaf
-	method    Handle
-	endHandle bool
-	children  []*node
+	method      Handle
+	endHandle   bool
+	children    []*node
 	paramHandle bool
 	statics     []*node
 	params      []*node
@@ -30,9 +32,12 @@ func (n *node) addNode(path string, handler Handle) {
 	var nn *node
 	// todo: 增加层级，更好的命中handler
 	path = internal.Trim(path, '/')
-	part, next, ending := "", 0, false
-	for !ending {
-		part, next, ending = traversePart(path, next,'/')
+	var err error
+	for next, part := 0, ""; err == nil; {
+		next, part, err = internal.Traverse(path, next, '/')
+		if err != nil && err != io.EOF {
+			panic(err)
+		}
 		matcher := Pattern(part)
 		switch matcher.Kind() {
 		case STATIC:
@@ -47,14 +52,14 @@ func (n *node) addNode(path string, handler Handle) {
 				target.statics = append(target.statics, nn)
 			}
 			nn.pattern = part
-			if ending {
+			if err == io.EOF {
 				if nn.method != nil {
 					panic("Ending point method mush be only")
 				}
 				nn.method = handler
 			}
 		case PARAM:
-			if ending && target.paramHandle {
+			if err == io.EOF && target.paramHandle {
 				panic("Ending point method mush be only")
 			}
 			for i := 0; i < len(target.params); i++ {
@@ -68,7 +73,7 @@ func (n *node) addNode(path string, handler Handle) {
 				target.params = append(target.params, nn)
 			}
 			nn.pattern = part[1:]
-			if ending {
+			if err == io.EOF {
 				if nn.method != nil {
 					panic("Ending point method mush be only")
 				}
@@ -76,7 +81,7 @@ func (n *node) addNode(path string, handler Handle) {
 				target.paramHandle = true
 			}
 		case WIDE:
-			if !ending || target.wide != nil {
+			if err != io.EOF || target.wide != nil {
 				panic("Wide pattern must be only in ending point")
 			}
 			nn = newNode()
@@ -87,36 +92,4 @@ func (n *node) addNode(path string, handler Handle) {
 	}
 	target = nn
 	nn = nil
-}
-
-func traversePart(path string, start int, mark byte) (part string, next int, ending bool) {
-	l := len(path)
-	switch l {
-	case start:
-		next, ending = start, true
-	case start + 1:
-		if path[start] == mark {
-			next, ending = start, true
-		} else {
-			part, next, ending = path, l, true
-		}
-	default:
-		begin := false
-		next = start
-		for ; next < len(path); next++ {
-			if (path[next] == mark) == begin {
-				if begin {
-					break
-				} else {
-					start = next
-					begin = true
-				}
-			}
-		}
-		ending = bool(l == next)
-		if next-1 > start {
-			part = path[start:next]
-		}
-	}
-	return
 }

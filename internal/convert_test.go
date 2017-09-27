@@ -1,11 +1,6 @@
 package internal
 
-import (
-	"strings"
-	"testing"
-	"reflect"
-	"unsafe"
-)
+import "testing"
 
 func BenchmarkConvertStrAndBytes(b *testing.B) {
 	str := "////////////pattern////////////"

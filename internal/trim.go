@@ -1,24 +1,25 @@
 package internal
 
 func TrimRight(s string, b byte) string {
-	if s == "" {
+	l := len(s)
+	if l == 0 {
 		return s
 	}
-	i := len(s)
-	for ; i > 0; i-- {
-		if s[i-1] != b {
+	for ; l > 0; l-- {
+		if s[l-1] != b {
 			break
 		}
 	}
-	return s[:i]
+	return s[:l]
 }
 
 func TrimLeft(s string, b byte) string {
-	if s == "" {
+	l := len(s)
+	if l == 0 {
 		return s
 	}
 	i := 0
-	for ; i < len(s); i++ {
+	for ; i < l; i++ {
 		if s[i] != b {
 			break
 		}
@@ -27,9 +28,36 @@ func TrimLeft(s string, b byte) string {
 }
 
 func Trim(s string, b byte) string {
-	ns := TrimLeft(s, b)
-	if len(ns) == len(s) {
+	return TrimRight(TrimLeft(s, b), b)
+}
+
+func TrimBytesRight(s []byte, b byte) []byte {
+	l := len(s)
+	if l == 0 {
 		return s
 	}
-	return TrimRight(ns, b)
+	for ; l > 0; l-- {
+		if s[l-1] != b {
+			break
+		}
+	}
+	return s[:l]
+}
+
+func TrimBytesLeft(s []byte, b byte) []byte {
+	l := len(s)
+	if l == 0 {
+		return s
+	}
+	i := 0
+	for ; i < l; i++ {
+		if s[i] != b {
+			break
+		}
+	}
+	return s[i:]
+}
+
+func TrimBytes(s []byte, b byte) []byte {
+	return TrimBytesRight(TrimBytesLeft(s, b), b)
 }

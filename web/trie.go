@@ -1,6 +1,7 @@
 package web
 
 import (
+	"io"
 	"net/http"
 
 	"github.com/chinx/mohist/internal"
@@ -29,15 +30,18 @@ func (n *node) addNode(path string, handler Handle) {
 	var nn *node
 	// todo: 增加层级，更好的命中handler
 	path = internal.Trim(path, '/')
-	part, s, ending := "", 0, false
-	for !ending {
-		part, s, ending = traversePart(path, '/', s)
+	var err error
+	for next, part := 0, ""; err == nil; {
+		next, part, err = internal.Traverse(path, next, '/')
+		if err != nil && err != io.EOF {
+			panic(err)
+		}
 		switch part[0] {
 		case ':':
 			if len(part) == 1 || !checkPart(part[1:]) {
 				panic("Wide pattern must be param")
 			}
-			if ending && target.paramHandle {
+			if err == io.EOF && target.paramHandle {
 				panic("Ending point method mush be only")
 			}
 			for i := 0; i < len(target.params); i++ {
@@ -51,7 +55,7 @@ func (n *node) addNode(path string, handler Handle) {
 				target.params = append(target.params, nn)
 			}
 			nn.pattern = part[1:]
-			if ending {
+			if err == io.EOF {
 				if nn.method != nil {
 					panic("Ending point method mush be only")
 				}
@@ -59,7 +63,7 @@ func (n *node) addNode(path string, handler Handle) {
 				target.paramHandle = true
 			}
 		case '?':
-			if !ending || len(part) < 3 || part[1] != ':' &&
+			if err != io.EOF || len(part) < 3 || part[1] != ':' &&
 				!checkPart(part[2:]) || target.wide != nil {
 				panic("Wide pattern must be only in ending point")
 			}
@@ -82,7 +86,7 @@ func (n *node) addNode(path string, handler Handle) {
 				target.statics = append(target.statics, nn)
 			}
 			nn.pattern = part
-			if ending {
+			if err == io.EOF {
 				if nn.method != nil {
 					panic("Ending point method mush be only")
 				}
@@ -94,26 +98,31 @@ func (n *node) addNode(path string, handler Handle) {
 	}
 }
 
-func (n *node) match(path string) (Handle, Params) {
+func (n *node) match(path string) (Handle, Params, error) {
 	values := NewParams()
-	return n.marchChildren(internal.Trim(path, '/'), values, 0), values
+	handler, err := n.marchChildren(internal.Trim(path, '/'), values, 0)
+	return handler, values, err
 }
 
-func (n *node) marchChildren(path string, values Params, s int) (handler Handle) {
-	part, e, ending := traversePart(path, '/', s)
+func (n *node) marchChildren(path string, values Params, start int) (handler Handle, err error) {
+	next, part := start, ""
+	next, part, err = internal.Traverse(path, next, '/')
+	if err != nil && err != io.EOF {
+		return
+	}
 
 	// match static handler
 	for i := 0; i < len(n.statics); i++ {
 		if n.statics[i].pattern == part {
 			nn := n.statics[i]
-			if ending {
+			if err == io.EOF {
 				if nn.method != nil {
 					handler = nn.method
 				} else if nn.wide != nil {
 					handler = nn.wide.method
 				}
 			} else {
-				handler = nn.marchChildren(path, values, e)
+				handler, err = nn.marchChildren(path, values, next)
 			}
 			return
 		}
@@ -123,14 +132,17 @@ func (n *node) marchChildren(path string, values Params, s int) (handler Handle)
 	for i := 0; i < len(n.params); i++ {
 		nn := n.params[i]
 		values.Set(nn.pattern, part)
-		if ending {
+		if err == io.EOF {
 			if nn.method != nil {
 				handler = nn.method
 			} else if nn.wide != nil {
 				handler = nn.wide.method
 			}
 		} else {
-			handler = nn.marchChildren(path, values, e)
+			handler, err = nn.marchChildren(path, values, next)
+			if err != nil && err != io.EOF {
+				return
+			}
 			if handler == nil {
 				continue
 			}
@@ -139,41 +151,9 @@ func (n *node) marchChildren(path string, values Params, s int) (handler Handle)
 	}
 
 	// match wide handler
-	if ending && n.wide != nil {
+	if err == io.EOF && n.wide != nil {
 		values.Set(n.wide.pattern, part)
 		handler = n.wide.method
-	}
-	return
-}
-
-func traversePart(path string, b byte, s int) (part string, n int, ending bool) {
-	l := len(path)
-	switch l {
-	case s:
-		n, ending = s, true
-	case s + 1:
-		if path[s] == b {
-			n, ending = s, true
-		} else {
-			part, n, ending = path, l, true
-		}
-	default:
-		begin := false
-		n = s
-		for ; n < len(path); n++ {
-			if (path[n] == b) == begin {
-				if begin {
-					break
-				} else {
-					s = n
-					begin = true
-				}
-			}
-		}
-		ending = (l == n)
-		if n-1 > s {
-			part = path[s:n]
-		}
 	}
 	return
 }

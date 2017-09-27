@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/chinx/mohist/internal"
+	"io"
+	"log"
 )
 
 type Router interface {
@@ -40,10 +42,14 @@ func NewRouter() Router {
 func (r *router) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	path := req.URL.Path
 	if root, ok := r.Trees[req.Method]; ok {
-		if handler, params := root.match(path); handler != nil {
-			handler(NewResponseWriter(rw), req, params)
-			return
+		handler, params, err := root.match(path)
+		if err == nil || err == io.EOF {
+			if handler != nil {
+				handler(NewResponseWriter(rw), req, params)
+				return
+			}
 		}
+		log.Println(err)
 	}
 	// Handle 404
 	if r.notFond != nil {

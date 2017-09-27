@@ -12,6 +12,13 @@ func BenchmarkTrim(b *testing.B) {
 	}
 }
 
+func BenchmarkTrimBytes(b *testing.B) {
+	str := StringBytes("////////////pattern////////////")
+	for i := 0; i < b.N; i++ {
+		TrimBytes(str, '/')
+	}
+}
+
 func BenchmarkTrimStr(b *testing.B) {
 	str := "////////////pattern////////////"
 	for i := 0; i < b.N; i++ {
@@ -26,6 +33,13 @@ func BenchmarkTrimLeft(b *testing.B) {
 	}
 }
 
+func BenchmarkTrimBytesLeft(b *testing.B) {
+	str := StringBytes("////////////pattern////////////")
+	for i := 0; i < b.N; i++ {
+		TrimBytesLeft(str, '/')
+	}
+}
+
 func BenchmarkTrimLeftStr(b *testing.B) {
 	str := "////////////pattern////////////"
 	for i := 0; i < b.N; i++ {
@@ -37,6 +51,13 @@ func BenchmarkTrimRight(b *testing.B) {
 	str := "////////////pattern////////////"
 	for i := 0; i < b.N; i++ {
 		TrimRight(str, '/')
+	}
+}
+
+func BenchmarkTrimBytesRight(b *testing.B) {
+	str := StringBytes("////////////pattern////////////")
+	for i := 0; i < b.N; i++ {
+		TrimBytesRight(str, '/')
 	}
 }
 
