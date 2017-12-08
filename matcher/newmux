@@ -77,3 +77,69 @@ func NewNode(pattern string, priority uint) *Node {
 		Children: make([]*Node, 0, 10),
 	}
 }
+func (n *RootNode) AddNode(pattern string, handler *string) {
+	if handler == nil {
+		log.Panicf("Mthod of pattern '%s' mush not nil\n", pattern)
+	}
+	buffer := &bytes.Buffer{}
+	target := n.Node
+	length := len(pattern)
+	for path, next := "", 0; next < length; {
+		path, next = Traverse(pattern, next)
+		if path == "" {
+			if _, ok := n.Hash["/"]; ok {
+				panic("Method of root path mush be only")
+			}
+			target.Method = handler
+			n.Hash["/"] = "/"
+			break
+		}
+		buffer.WriteByte('/')
+
+		priority, ended := static, next == length
+		if path[0] == '*' || path[0] == ':' {
+			priority = dynamic
+			buffer.WriteString("%v")
+			if path[0] == '*' {
+				if !ended {
+					log.Panicf("'*' in pattern '%s' must be endpoint\n", pattern)
+				}
+				priority = elastic
+			}
+			path = path[1:]
+		} else {
+			buffer.WriteString(path)
+		}
+
+		if !checkPart(path) {
+			log.Panicf("Path '%s' in pattern '%s' not matched regex `^[a-zA-Z](([a-zA-Z0-9_.]*[a-zA-Z0-9]+))*$`\n", path, pattern)
+		}
+
+		var nn *Node
+		for i := range target.Children {
+			if target.Children[i].Priority != priority {
+				continue
+			}
+			if target.Children[i].Pattern == path {
+				nn = target.Children[i]
+				break
+			}
+		}
+
+		if nn == nil {
+			nn = NewNode(path, priority)
+			target.Children = target.Children.Add(nn)
+		}
+
+		if ended {
+			flag := buffer.String()
+			if val, ok := n.Hash[flag]; ok {
+				log.Panicf("Pattern '%s' conflicted with '%s'\n", val, pattern)
+			}
+			nn.Method = handler
+			n.Hash[flag] = pattern
+			break
+		}
+		target = nn
+	}
+}
