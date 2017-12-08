@@ -143,3 +143,53 @@ func (n *RootNode) AddNode(pattern string, handler *string) {
 		target = nn
 	}
 }
+
+
+func (n *RootNode) Match(pattern string) (handler *string, params map[string]string) {
+	return n.matchChildren(pattern, 0, len(pattern))
+}
+
+func (n *Node) matchChildren(pattern string, start, length int) (handler *string, vals map[string]string) {
+	vals = make(map[string]string)
+	path, next := Traverse(pattern, start)
+	if path == "" {
+		handler = n.Method
+		return
+	}
+	ended := next == length
+	for i := 0; i < len(n.Children); i++ {
+		nn := n.Children[i]
+		if nn.Priority == elastic {
+			if nn.Method != nil {
+				handler = nn.Method
+				if !ended {
+					path += "/" + pattern[next:]
+				}
+				vals[nn.Pattern] = path
+			}
+			return
+		}
+		if isDynamic := nn.Priority == dynamic; isDynamic || nn.Pattern == path{
+			if !ended {
+				h, v := nn.matchChildren(pattern, next, length)
+				if h != nil {
+					handler = h
+					if isDynamic {
+						vals[nn.Pattern] = path
+					}
+					for key, val := range v {
+						vals[key] = val
+					}
+					break
+				}
+			} else if nn.Method != nil {
+				handler = nn.Method
+				if isDynamic {
+					vals[nn.Pattern] = path
+				}
+				break
+			}
+		}
+	}
+	return
+}
