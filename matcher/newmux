@@ -12,3 +12,40 @@ const (
 )
 
 type NodeChildren []*Node
+func (n NodeChildren) Add(child *Node) NodeChildren {
+	index, l := 0, len(n)
+	nc := make(NodeChildren, l+1)
+	switch l {
+	case 0:
+		nc[index] = child
+		return nc
+	case 1:
+		if child.Priority >= n[0].Priority {
+			nc[0], nc[l] = n[0], child
+		} else {
+			nc[0], nc[l] = child, n[0]
+		}
+		return nc
+	}
+
+	switch child.Priority {
+	case static:
+		index = 0
+	case elastic:
+		index = l
+	case dynamic:
+		for index = range n {
+			if n[index].Priority == child.Priority {
+				break
+			}
+		}
+	}
+	nc[index] = child
+	if index != 0 {
+		copy(nc[:index], n[:index])
+	}
+	if index != l {
+		copy(nc[index+1:], n[index:])
+	}
+	return nc
+}
