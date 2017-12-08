@@ -1,0 +1,14 @@
+package newmux
+
+import (
+	"bytes"
+	"log"
+)
+
+const (
+	static uint = iota
+	dynamic
+	elastic
+)
+
+type NodeChildren []*Node
