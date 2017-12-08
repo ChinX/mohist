@@ -49,3 +49,31 @@ func (n NodeChildren) Add(child *Node) NodeChildren {
 	}
 	return nc
 }
+
+
+type RootNode struct {
+	*Node
+	Hash map[string]string
+}
+
+type Node struct {
+	Pattern  string
+	Priority uint
+	Method   *string
+	Children NodeChildren
+}
+
+func NewRootNode() *RootNode {
+	return &RootNode{
+		Node: NewNode("root", static),
+		Hash: make(map[string]string),
+	}
+}
+
+func NewNode(pattern string, priority uint) *Node {
+	return &Node{
+		Pattern:  pattern,
+		Priority: priority,
+		Children: make([]*Node, 0, 10),
+	}
+}
