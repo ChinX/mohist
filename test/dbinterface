@@ -1,0 +1,58 @@
+package svcs
+
+import (
+	"fmt"
+	"log"
+)
+
+var initHandles map[string]InitHandler
+
+func init() {
+	initHandles = make(map[string]InitHandler)
+}
+
+func Registry(driver string, instance InitHandler) {
+	opt := "services registry error: driver \"%s\" db init handler %s"
+	if instance == nil {
+		log.Printf(opt, driver, "must not nil")
+	}
+
+	if _, exist := initHandles[driver]; exist {
+		log.Printf(opt, driver, " is already exists")
+	}
+
+	initHandles[driver] = instance
+}
+
+func NewServer(driver string) (InitHandler, error) {
+	opt := "services registry error: driver \"%s\" db init handler %s"
+
+	instance, exist := initHandles[driver]
+	if !exist {
+		return nil, fmt.Errorf(opt, driver, "is not set")
+	}
+
+	return instance, nil
+}
+
+type InitHandler func(driver, host, port, user, passwd, dbName string) (DB, error)
+
+type Pair struct {
+	Key string
+	Val string
+}
+
+type DB interface {
+	Table(name string) Tabulator
+}
+
+type Tabulator interface {
+	Where(conditions ...*Pair) Behavior
+	Create(values ...*Pair) (int64, error)
+}
+
+type Behavior interface {
+	Update(values ...*Pair) (int, error)
+	Retrieve(filters ...string) ([][]*Pair, error)
+	Delete() (int, error)
+}
