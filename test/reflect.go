@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 )
 
-func ValPointerNotNil(val interface{}) reflect.Value {
-	rv := reflect.ValueOf(val)
+func ValOfNotNilPtr(i interface{}) reflect.Value {
+	rv := reflect.ValueOf(i)
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
-		rt := reflect.TypeOf(val)
+		rt := reflect.TypeOf(i)
 		msg := "reflect mode is nil"
 		if rt != nil {
 			if rt.Kind() != reflect.Ptr {
@@ -24,15 +23,23 @@ func ValPointerNotNil(val interface{}) reflect.Value {
 	return rv.Elem()
 }
 
-func realTypeValue(rv reflect.Value) (reflect.Type, reflect.Value) {
+func IndirectType(t reflect.Type) reflect.Type {
+	if t.Kind() != reflect.Ptr {
+		return t
+	}
+	return t.Elem()
+}
+
+func IndirectTypeVal(rv reflect.Value) (reflect.Type, reflect.Value) {
 	if rv.Kind() == reflect.Ptr {
 		rv = rv.Elem()
 	}
 	return rv.Type(), rv
 }
 
-func valByTagName(tag, name string, rv reflect.Value) string {
+func GetValByTagName(tag, name string, rv reflect.Value) string {
 	rt := rv.Type()
+	rt.Key()
 	for i := 0; i < rt.NumField(); i++ {
 		rsi := rt.Field(i)
 		if rsi.Anonymous || rsi.Tag.Get(tag) != name {
@@ -40,7 +47,7 @@ func valByTagName(tag, name string, rv reflect.Value) string {
 		}
 		rvi := rv.Field(i)
 		if rvi.Kind() != reflect.Ptr || !rvi.IsNil() && rvi.CanSet() {
-			str := strWithProperType(rvi)
+			str := ValString(rvi)
 
 			return str
 		}
@@ -48,7 +55,7 @@ func valByTagName(tag, name string, rv reflect.Value) string {
 	return ""
 }
 
-func setByTagPair(rv reflect.Value, tag string, keys, vals []string) error {
+func SetValTagPair(rv reflect.Value, tag string, keys, vals []string) error {
 	rt := rv.Type()
 	for i := 0; i < rt.NumField(); i++ {
 		rsi := rt.Field(i)
@@ -61,7 +68,7 @@ func setByTagPair(rv reflect.Value, tag string, keys, vals []string) error {
 				if keys[ki] == tagName {
 					rvi := rv.Field(i)
 					if rvi.Kind() != reflect.Ptr || !rvi.IsNil() && rvi.CanSet() {
-						if err := setWithProperType(rvi, vals[ki]); err != nil {
+						if err := SetValParseString(rvi, vals[ki]); err != nil {
 							return err
 						}
 					}
@@ -72,61 +79,61 @@ func setByTagPair(rv reflect.Value, tag string, keys, vals []string) error {
 	return nil
 }
 
-func setWithProperType(rv reflect.Value, val string) (err error) {
-	rt, rv := realTypeValue(rv)
+func SetValParseString(v reflect.Value, s string) (err error) {
+	rt, v := IndirectTypeVal(v)
 	switch rt.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		var result int64
-		result, err = strconv.ParseInt(val, 10, 64)
+		result, err = strconv.ParseInt(s, 10, 64)
 		if err == nil {
-			rv.SetInt(result)
+			v.SetInt(result)
 		}
 	case reflect.Bool:
 		var result bool
-		result, err = strconv.ParseBool(val)
+		result, err = strconv.ParseBool(s)
 		if err == nil {
-			rv.SetBool(result)
+			v.SetBool(result)
 		}
 	case reflect.Float32, reflect.Float64:
 		var result float64
-		result, err = strconv.ParseFloat(val, 0)
+		result, err = strconv.ParseFloat(s, 0)
 		if err == nil {
-			rv.SetFloat(result)
+			v.SetFloat(result)
 		}
 	case reflect.String:
-		rv.SetString(val)
+		v.SetString(s)
 	default:
 		return fmt.Errorf("file struct error(not found value)")
 	}
 	return nil
 }
 
-func strWithProperType(rv reflect.Value) string {
-	rt, rv := realTypeValue(rv)
+func ValString(v reflect.Value) string {
+	rt, v := IndirectTypeVal(v)
 
 	switch rt.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return strconv.FormatInt(rv.Int(), 10)
+		return strconv.FormatInt(v.Int(), 10)
 	case reflect.Bool:
-		return strconv.FormatBool(rv.Bool())
+		return strconv.FormatBool(v.Bool())
 	case reflect.Float32, reflect.Float64:
-		return strconv.FormatFloat(rv.Float(), 'f', 2, 64)
+		return strconv.FormatFloat(v.Float(), 'f', 2, 64)
 	case reflect.String:
-		return rv.String()
+		return v.String()
 	}
 	return ""
 }
 
-func FieldInfo(typ reflect.Type, tagName string) map[string][]int {
-	if typ.Kind() == reflect.Ptr {
-		typ = typ.Elem()
+func FieldsIndex(t reflect.Type, tagName string) map[string][]int {
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
 	}
 
 	fields := make(map[string][]int)
-	for i := 0; i < typ.NumField(); i++ {
-		f := typ.Field(i)
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
 		tag := f.Tag.Get(tagName)
 
 		// Skip unexported fields or fields marked with "-"
@@ -135,18 +142,15 @@ func FieldInfo(typ reflect.Type, tagName string) map[string][]int {
 		}
 		// Handle embedded structs
 		if f.Anonymous && f.Type.Kind() == reflect.Struct {
-			for k, v := range FieldInfo(f.Type, tagName) {
+			for k, v := range FieldsIndex(f.Type, tagName) {
 				fields[k] = append(f.Index, v...)
 			}
 			continue
 		}
 
-		// Use field name for untagged fields
 		if tag == "" {
-			tag = f.Name
+			tag = snakeCasedName(f.Name)
 		}
-
-		tag = strings.ToLower(tag)
 
 		fields[tag] = f.Index
 	}
