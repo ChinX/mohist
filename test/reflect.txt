@@ -1,0 +1,220 @@
+rflect包
+    func TypeOf(i interface{}) Type                 获得类型信息
+    func ValueOf(i interface{}) Value               获得值信息
+
+reflect.Type
+    func Align() int                                作为变量的对齐信息
+    func FieldAlign() int                           作为结构字段的对齐信息
+    func Size() uinptr                              该类型的值存储所需要的内存大小，以字节为单位
+    func Name() string                              类型在其定义包中的名称，有些类型没有名称(比如数组、slice、函数等等)，返回一个空字符串
+    func PkgPath() string                           类型定义位置，导入该类型使用的import语句的参数。预定义类型(string, error等)返回一个空字符串
+    func Kind() Kind                                类型种类，reflect包定义了Kind类型来表示各种类型。重命名一个类型并不会改变其种类
+    func NumMethod() int                            类型中方法数量
+    func Method(index int) Method                   使用索引访问方法类型信息，索引从0开始，如果越界，将panic
+    func MethodByName(name string) (Method, bool)   使用名称来访问方法类型信息，bool表示是否找到
+    func Implements( u Type) bool                   是否使用了接口u,u必须表示一个接口类型
+    func ConvertibleTo(u Type) bool                 是否可以使用标准转换语句，转换为u类型
+    func AssignableTo(u Type) bool                  是否可以赋值给u类型的变量
+
+reflect.Kind
+    Kind类型来表示类型所属的分类：
+
+    Invalid，Bool，Int，Int8，Int16，Int32，Int64，
+    Uint，Uint8，Uint16，Uint32，Uint64，Uintptr，Float32，Float64，
+    Complex64，Complex128，Array，Chan，Func，Interface，Map，
+    Ptr，Slice，String，Struct，UnsafePointer
+
+    func String() string                            一个字符串表示Kind类型
+
+reflect.Value
+    func CanAddr() Bool                             是否可以寻址，使用ValueOf(pointer).Elem()生成指向的元素对应的Value对象进行赋值才有意义
+    func Addr() Value                               获取值的地址，如果CanAddr()返回false，调用这个会panic
+    func UnsafeAddr() uintptr                       获取值的地址，如果CanAddr()返回false，调用这个会panic
+    func CanSet() bool                              是否可以修改值，可以寻址，并为结构体中导出字段才可修改
+    func Set(x Value)                               设置值，如果CanSet()返回false，调用这个会panic
+    func Convert(t Type) Value                      转换为t类型的值，如果无法使用标准Go转换规则来转换，那么panic
+    func Iterface{} interface{}                     获取interface{}类型值，如果Value是通过访问结构的非导出字段获得，panic
+    func IsValid() bool                             是否是一个合法的Value对象，只有零值才会返回false
+    func Kind() Kind                                所属的类型分类，零值会返回Invalid
+    func NumMethod() int                            值中方法数量
+    func Method(index int) Value                    使用索引访问方法值，索引从0开始，如果越界，将panic
+    func MethodByName(name string) Value            使用名称来访问方法值，没有找到则返回一个零值
+    func String() string                            返回值的格式为<类型 值>
+    func Type() Type                                返回值的类型信息
+    func NumField() int                             结构字段数量
+    func Field(i int) Value                         使用索引来访问字段，索引从0开始，如果越界将panic
+    func FieldByName(name string) Value             使用名称来访问字段，，没有找到则返回一个零值
+    func FieldByNameFunc(match func(string) bool) Value
+                                                    使用匹配函数获取字段，没有找到则返回一个零值
+    func FieldByIndex(index []int) Value            迭代索引获取字段，index越界则panic
+    func IsNil() bool                               是否为空值
+    func Pointer() uintptr                          指针值
+
+数字类型
+    reflect.Type
+        func Bits() int                             位数： 该类型大小，以二进制位为单位
+
+    reflect.Value
+        *获取/设置值/判断设置时是否会溢出
+        func Float() float64
+        func SetFloat(x float64)
+        func OverflowFloat(x float64) bool
+
+        func Int() int64
+        func SetInt(x int64)
+        func OverflowInt(x int64) bool
+
+        func Unt() uint64
+        func SetUnt(x uint64)
+        func OverflowUnt(x uint64) bool
+
+        *复数
+        func Complex() complex128
+        func SetComplex(x complex128)
+        func OverflowComplex(x complex128) bool
+
+结构类型
+    reflect.Value
+        func NumField() int                                 结构字段数量
+        func Field(i int) StructField                       使用索引来访问字段，索引从0开始，如果越界将panic
+        func FieldByName(name string) (StructField,bool)    使用名称来访问字段，如果未找到那么返回false
+        func FieldByNameFunc(match func(string) bool) (StructField,bool)
+                                                            使用匹配函数获取字段，未匹配或匹配多个则返回false
+        func FieldByIndex(index []int) StructField          迭代索引获取字段，index越界则panic
+
+    type StructField struct{
+        Name        string          //名称
+        PkgPath     string          //导出字段，为空字符串;非导出字段，是定义该字段类型的包名
+        Type        Type
+        Tag         StructTag
+        Offset      uintptr         //在结构内的位移
+        Index       []int           //当使用Type.FieldByIndex()方法的参数
+        Anonymous   bool            //是否为匿名字段
+    }
+
+    type StructTag string           描述了结构字段的tag。按照约定，tag格式为:
+        * 由多个部分连接而成，部分之间有可选的空格
+        * 部分格式为 key:value
+        * key是非空的字符串，由非控制字符组成，并且不可以是空格、双引号、冒号
+        * 值由双引号包围，遵循Go字符串字面值语法
+
+        func Get(key string) string
+
+方法类型
+    reflect.Type
+        func IsVariadic() bool                              参数是否可变
+        func NumIn() int                                    参数的数量，可变参数单独作为slice计算
+        func NumOut() int                                   返回值的数量，可变参数单独作为slice计算
+        func In(i int) Type                                 使用索引访问参数类型信息，索引从0开始，如果越界，将panic
+        func Out(i int) Type                                使用索引访问返回值类型信息，索引从0开始，如果越界，将panic
+
+    reflect.Value
+        func Call(in []Value)[]Value                        调用函数
+        func CallSlice(in []Value) []Value                  调用函数（可变参数）
+        func Pointer() uintptr                              以uintptr返回函数的值，不能独一无二的识别一个函数，如果函数为nil，值为0
+
+通道类型
+    reflect.Type
+        func ChanDir() ChanDir                              判断通道的方向
+
+    reflect.Value
+        func Close()                                        关闭通道
+        func Len() int                                      通道元素数量
+        func Cap() int                                      通道的容量
+        func Send(x Value)                                  发送一个值，x必表示一个可以赋值给通道元素类型的值
+        func TrySend(x Value) bool                          尝试以非阻塞的方式发送一个值，返回操作成功与否
+        func Recv() (Value,bool)                            接收一个值，如果通道已经关闭，返回false
+        func TryRecv() (Value,bool)                         尝试以非阻塞的方式接收一个值
+
+slice类型
+    reflect.Value
+        func Len() int                                      切片元素数量
+        func Cap() int                                      切片的容量
+        func Index(i int) Value                             索引访问某个元素
+        func Slice(i,j int) Value                           访问某个子slice,索引下标必须合法
+        func Slice3(i,j,k) Value                            3个索引下标格式访问某个子slice，下标必须合法
+        func SetCap(i int)                                  设置切片容量，i必须在[v.Len(),v.Cap()]之间
+        func SetLen(i int)                                  设置切片长度，i必须在[0,v.Cap()]之间
+
+映射类型
+    reflect.Type
+        func Key() Type                                     必须是map类型
+        func Elem() Type
+
+    reflect.Value
+        func Len() int                                      所属元素长度
+        func IsNil() bool                                   是否为空参数
+        func MapKeys() []Value                              返回所有键值
+        func MapIndex(key Value) Value                      获取指定键值
+        func SetMapIndex(key, x Value)                      x为零值代码删除元素
+
+指针类型
+    reflect.Type
+        func Elem() Type
+
+    reflect.Value
+        func IsNil() bool
+        func Elem() Value
+
+数组类型
+    reflect.Type
+        func Elem() Type
+        func Len() int
+    reflect.Value
+        func Len() int                                      数组长度
+        *下面两个方法要求v.CanAddr()返回true
+        func Slice(i,j int) Value                           访问某个子slice,索引下标必须合法
+        func Slice3(i,j,k) Value                            3个索引下标格式访问某个子slice，下标必须合法
+
+接口类型
+    reflect.Value
+        func IsNil() bool                                   判断接口是否为空
+        func Elem() Value                                   返回接口包含的真实值
+        func InterfaceData() [2]uintptr                     这个方法的用法比较奇怪，还未能找到一个合适的例子
+
+[]byte类型
+    reflect.Value
+        func Bytes() []byte
+        func SetBytes( x []byte)
+
+字符串类型
+    reflect.Value
+        func SetString(x string)                            设置字符串的值
+        func Index(i int)Value                              访问单个字节
+        func Len() int                                      字符串的长度
+
+组合生成一个Value
+    reflect.Value
+        func Append(s Value,value ...Value) Value
+        func AppendSlice(s, t Value) Value
+            * 前者将value参数附加到s参数中，返回结果
+            * 后者将t参数的元素附加到s参数末尾，返回结果
+            * 很显然，以值传递参数，参数本身的值并未改变
+            * s,t 必须都是表示slice,并且遵循Go的slice规则，即元素类型必须可赋值(前者)/相同(后者)
+
+        func Indirect(s Value) Value
+            * 如果s表示一个指针，那么返回所指向的元素，特别地,nil指针返回一个零值的Value
+            * 如果s表示其他类型值，那么返回s本身
+            * 使用一个Type类型，生成表示该类型值的Value，都是零值
+
+        func MakeChan(typ Type, buffer int) Value           生成一个通道
+        func MakeMap(typ Type) Value                        生成一个映射
+        func MakeSlice(typ Type, len, cap int) Value        生成一个slice
+        func New(typ Type) Value                            生成一个类型为typ的零值，返回的是其指针,符合New的语义
+        func NewAt(typ Type, p unsafe.Pointer) Value        将p当做一个指向typ类型的指针，包装并返回
+        func Zero(typ Type) Value                           生成typ类型的零值，既不可以修改也不可以取得其地址
+
+        func MakeFunc(typ Type, fn func(args []Value)(results []Value)) Value
+            *从某个函数类型typ生成一个Value，返回值wrap了第二个参数。返回值的类型为typ
+            1.将所有参数转换为Value，并且加入到fn的args中。可变参数会先转换为一个slice，然后作为args的最后一个参数加入。
+            2.调用fn
+            3.将fn的返回值转换为typ中描述的类型，并返回
+            fn的签名类型非常特殊，允许任何数量、类型的参数，返回任何数量、类型的返回值，因此任何函数都可以包装在这样的签名里。
+            真实的签名由typ提供，从而提供了动态生成函数的机制。
+
+组合生成一个Type
+    reflect.Type
+        func SliceOf(t Type) Type
+        func ChanOf(dir ChanDir, t Type) Type
+        func MapOf(key, value Type) Type
+        func PtrTo(t Type) Type
