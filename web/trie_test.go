@@ -4,18 +4,14 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"testing"
+		"testing"
 	"time"
 
-	"strings"
-
-	"github.com/chinx/mohist/internal"
+		"github.com/chinx/mohist/internal"
 	"github.com/gin-gonic/gin"
-	"github.com/go-baa/baa"
 	"github.com/go-macaron/macaron"
-	"github.com/julienschmidt/httprouter"
 	"github.com/labstack/echo"
+	mohism "github.com/chinx/mohism/router"
 )
 
 var waitTime time.Duration = 0
@@ -53,32 +49,33 @@ func TestPartForByte(t *testing.T) {
 		log.Println("aaa", part, ending)
 	}
 }
-
-func BenchmarkTravers(b *testing.B) {
-	s := "////////////pattern////////////"
-	for i := 0; i < b.N; i++ {
-		arr := strings.Split(s, "/")
-		for j := 0; j < len(arr); j++ {
-			if arr[j] != "" {
-			}
-		}
-
-	}
-}
-
-func BenchmarkPartForByte(b *testing.B) {
-	p := "////////////pattern////////////"
-	for i := 0; i < b.N; i++ {
-		s, ending := 0, false
-		for !ending {
-			_, s, ending = traversePart(p, '/', s)
-		}
-	}
-
-}
+//
+//func BenchmarkTravers(b *testing.B) {
+//	s := "////////////pattern////////////"
+//	for i := 0; i < b.N; i++ {
+//		arr := strings.Split(s, "/")
+//		for j := 0; j < len(arr); j++ {
+//			if arr[j] != "" {
+//			}
+//		}
+//
+//	}
+//}
+//
+//func BenchmarkPartForByte(b *testing.B) {
+//	p := "////////////pattern////////////"
+//	for i := 0; i < b.N; i++ {
+//		s, ending := 0, false
+//		for !ending {
+//			_, s, ending = traversePart(p, '/', s)
+//		}
+//	}
+//
+//}
 
 func BenchmarkGin(b *testing.B) {
-	os.Setenv("GIN_MODE", "1")
+	b.StopTimer()
+	gin.SetMode(gin.ReleaseMode)
 	n := gin.New()
 	b.Log("Gin")
 	execute(b, func(path string) {
@@ -89,6 +86,7 @@ func BenchmarkGin(b *testing.B) {
 }
 
 func BenchmarkMohist(b *testing.B) {
+	b.StopTimer()
 	n := NewRouter()
 	b.Log("Mohist")
 	execute(b, func(path string) {
@@ -98,7 +96,19 @@ func BenchmarkMohist(b *testing.B) {
 	}, func(path string) { request(n, path) })
 }
 
+func BenchmarkMohism(b *testing.B) {
+	b.StopTimer()
+	n := mohism.New()
+	b.Log("Mohism")
+	execute(b, func(path string) {
+		n.Get(path, func(w http.ResponseWriter, req *http.Request) {
+			wait()
+		})
+	}, func(path string) { request(n, path) })
+}
+
 func BenchmarkEach(b *testing.B) {
+	b.StopTimer()
 	n := echo.New()
 	b.Log("Each")
 	execute(b, func(path string) {
@@ -109,27 +119,28 @@ func BenchmarkEach(b *testing.B) {
 	}, func(path string) { request(n, path) })
 }
 
-func BenchmarkBaa(b *testing.B) {
-	n := baa.New()
-	b.Log("Baa")
-	execute(b, func(path string) {
-		n.Get(path, func(content *baa.Context) {
-			wait()
-		})
-	}, func(path string) { request(n, path) })
-}
+//func BenchmarkBaa(b *testing.B) {
+//	n := baa.New()
+//	b.Log("Baa")
+//	execute(b, func(path string) {
+//		n.Get(path, func(content *baa.Context) {
+//			wait()
+//		})
+//	}, func(path string) { request(n, path) })
+//}
 
-func BenchmarkHttpRouter(b *testing.B) {
-	n := &httprouter.Router{}
-	b.Log("httprouter")
-	execute(b, func(path string) {
-		n.GET(path, func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
-			wait()
-		})
-	}, func(path string) { request(n, path) })
-}
+//func BenchmarkHttpRouter(b *testing.B) {
+//	n := &httprouter.Router{}
+//	b.Log("httprouter")
+//	execute(b, func(path string) {
+//		n.GET(path, func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+//			wait()
+//		})
+//	}, func(path string) { request(n, path) })
+//}
 
 func BenchmarkMacaron(b *testing.B) {
+	b.StopTimer()
 	n := macaron.New()
 	b.Log("Macaron")
 	execute(b, func(path string) {
@@ -145,6 +156,7 @@ func execute(b *testing.B, reg func(string), req func(string)) {
 		reg(addUrls[i])
 	}
 	matches := matchUrl()
+	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		for i := 0; i < len(matches); i++ {
 			req(matches[i])

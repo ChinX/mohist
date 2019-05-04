@@ -3,6 +3,8 @@ package crypts
 import (
 	"bytes"
 	"crypto"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/md5"
 	"crypto/rand"
 	"crypto/rsa"
@@ -122,4 +124,45 @@ func getPubKey(pubBytes []byte) (*rsa.PublicKey, error) {
 	}
 
 	return pubKey, nil
+}
+
+
+func PKCS5Padding(ciphertext []byte, blockSize int) []byte {
+	padding := blockSize - len(ciphertext)%blockSize
+	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
+	return append(ciphertext, padtext...)
+}
+
+func PKCS5UnPadding(origData []byte) []byte {
+	length := len(origData)
+	unpadding := int(origData[length-1])
+	return origData[:(length - unpadding)]
+}
+
+func AesEncrypt(keyBytes, contentBytes []byte) ([]byte, error) {
+	block, err := aes.NewCipher(keyBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	blockSize := block.BlockSize()
+	contentBytes = PKCS5Padding(contentBytes, blockSize)
+	blockMode := cipher.NewCBCEncrypter(block, keyBytes[:blockSize])
+	crypted := make([]byte, len(contentBytes))
+	blockMode.CryptBlocks(crypted, contentBytes)
+	return crypted, nil
+}
+
+func AesDecrypt(keyBytes, contentBytes []byte) ([]byte, error) {
+	block, err := aes.NewCipher(keyBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	blockSize := block.BlockSize()
+	blockMode := cipher.NewCBCDecrypter(block, keyBytes[:blockSize])
+	origData := make([]byte, len(contentBytes))
+	blockMode.CryptBlocks(origData, contentBytes)
+	origData = PKCS5UnPadding(origData)
+	return origData, nil
 }
